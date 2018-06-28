@@ -8,17 +8,22 @@ import (
 	"code.cloudfoundry.org/rfc5424"
 )
 
+// Out writes fluentbit messages via syslog TCP (RFC 5424 and RFC 6587).
 type Out struct {
 	addr string
 	conn net.Conn
 }
 
+// NewOut creates a new
 func NewOut(addr string) *Out {
 	return &Out{
 		addr: addr,
 	}
 }
 
+// Write takes a record, timestamp, and tag and converts it into a syslog
+// message and writes it out to the connection. If no connection is
+// established one will be established.
 func (o *Out) Write(
 	record map[string]string,
 	ts time.Time,
@@ -30,11 +35,9 @@ func (o *Out) Write(
 	}
 
 	msg := convert(record, ts, tag)
+	// TODO: if write fails should we kill the connection?
 	_, err = msg.WriteTo(o.conn)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (o *Out) maintainConnection() error {
