@@ -76,10 +76,43 @@ var _ = Describe("Out", func() {
 
 		done := make(chan struct{})
 		go func() {
+			defer GinkgoRecover()
 			defer close(done)
-			spyDrain.accept()
+			spyDrain.lis.Accept()
 		}()
 		Consistently(done).ShouldNot(BeClosed())
+	})
+
+	It("reconnects if previous connection went away", func() {
+		spyDrain := newSpyDrain()
+		out := syslog.NewOut(spyDrain.url())
+		record1 := map[string]string{
+			"log": "some-log-message-1",
+		}
+		err := out.Write(record1, time.Unix(0, 0).UTC(), "")
+		Expect(err).ToNot(HaveOccurred())
+		spyDrain.expectReceived(
+			`61 <14>1 1970-01-01T00:00:00+00:00 - - - - - some-log-message-1` + "\n",
+		)
+
+		spyDrain.stop()
+		spyDrain = newSpyDrain(spyDrain.url())
+
+		record2 := map[string]string{
+			"log": "some-log-message-2",
+		}
+
+		f := func() error {
+			return out.Write(record2, time.Unix(0, 0).UTC(), "")
+		}
+		Eventually(f).Should(HaveOccurred())
+
+		err = out.Write(record2, time.Unix(0, 0).UTC(), "")
+		Expect(err).ToNot(HaveOccurred())
+
+		spyDrain.expectReceived(
+			`61 <14>1 1970-01-01T00:00:00+00:00 - - - - - some-log-message-2` + "\n",
+		)
 	})
 })
 

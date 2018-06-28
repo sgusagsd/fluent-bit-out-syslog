@@ -35,9 +35,12 @@ func (o *Out) Write(
 	}
 
 	msg := convert(record, ts, tag)
-	// TODO: if write fails should we kill the connection?
 	_, err = msg.WriteTo(o.conn)
-	return err
+	if err != nil {
+		o.conn = nil
+		return err
+	}
+	return nil
 }
 
 func (o *Out) maintainConnection() error {
