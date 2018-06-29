@@ -13,28 +13,16 @@ import (
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
-	"github.com/oratos/out_syslog/pkg/fluentbin"
 )
 
 var _ = Describe("Syslog Output Plugin", func() {
 	DescribeTable("writes out logs to syslog", func(msgs []string) {
-		fbPath, cleanup := writeBin(fluentbin.MustAsset(binName))
-		defer cleanup()
 		logPath, cleanup := writeLog(msgs)
 		defer cleanup()
-
 		spyDrain := newSpyDrain()
 		defer spyDrain.stop()
-
 		configPath, cleanup := writeConf(logPath, spyDrain.url())
 		defer cleanup()
-
-		pluginPath, err := gexec.Build(
-			"github.com/oratos/out_syslog/cmd",
-			"-buildmode", "c-shared",
-			"-o", "out_syslog.so",
-		)
-		Expect(err).ToNot(HaveOccurred())
 
 		cmd := exec.Command(
 			fbPath,
@@ -82,34 +70,12 @@ func writeLog(msgs []string) (string, func()) {
 	}
 }
 
-func writeBin(bin []byte) (string, func()) {
-	f, err := ioutil.TempFile("", "")
-	Expect(err).ToNot(HaveOccurred())
-	defer f.Close()
-
-	n, err := f.Write(bin)
-	Expect(err).ToNot(HaveOccurred())
-	if n != len(bin) {
-		Fail("unable to write bin to temp file")
-	}
-
-	os.Chmod(f.Name(), 0777)
-
-	return f.Name(), func() {
-		err := os.Remove(f.Name())
-		Expect(err).ToNot(HaveOccurred())
-	}
-}
-
 func writeConf(logPath, addr string) (string, func()) {
 	f, err := ioutil.TempFile("", "")
 	Expect(err).ToNot(HaveOccurred())
 
 	conf := []byte(fmt.Sprintf(`
 [SERVICE]
-    HTTP_Server  On
-    HTTP_Listen  0.0.0.0
-    HTTP_PORT    2020
     Flush  1
 
 [INPUT]
