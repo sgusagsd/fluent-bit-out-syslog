@@ -25,7 +25,12 @@ var _ = Describe("Syslog Output Plugin", func() {
 		defer cleanup()
 
 		cmd := exec.Command(
-			fbPath,
+			"docker",
+			"run",
+			"--network", "host",
+			"-v", "/tmp:/tmp",
+			"fluent/fluent-bit:0.13.4",
+			"/fluent-bit/bin/fluent-bit",
 			"-e", pluginPath,
 			"-c", configPath,
 		)
