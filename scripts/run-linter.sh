@@ -15,10 +15,6 @@ function install_golangci_lint () {
 }
 
 function run_golangci_lint() {
-    go get "github.com/onsi/ginkgo"
-    go get "github.com/onsi/gomega"
-    go get "github.com/oratos/out_syslog/pkg/fluentbin"
-    go get "code.cloudfoundry.org/rfc5424"
     log "Run golangci-lint run"
     golangci-lint run
 }
