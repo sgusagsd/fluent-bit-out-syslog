@@ -17,3 +17,8 @@ fluent-bit \
     --output syslog \
     --prop Addr=localhost:12345
 ```
+
+**Run Linter:**
+```
+./scripts/run-linter.sh
+```
