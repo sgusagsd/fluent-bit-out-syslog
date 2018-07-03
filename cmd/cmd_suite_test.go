@@ -1,7 +1,15 @@
 package main_test
 
 import (
+	"errors"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path"
+	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -15,7 +23,7 @@ func TestCmd(t *testing.T) {
 
 var (
 	pluginPath string
-	cleanup    func()
+	cleanup    = func() {}
 )
 
 var _ = BeforeSuite(func() {
@@ -27,10 +35,50 @@ var _ = AfterSuite(func() {
 })
 
 func buildPlugin() (string, func()) {
-	path, err := gexec.Build(
-		"github.com/oratos/out_syslog/cmd",
-		"-buildmode", "c-shared",
-	)
+	tmpPath, err := ioutil.TempDir("/tmp", "")
 	Expect(err).ToNot(HaveOccurred())
-	return path, gexec.CleanupBuildArtifacts
+
+	gopath, err := goPath()
+	Expect(err).ToNot(HaveOccurred())
+	cmd := exec.Command(
+		"docker",
+		"run",
+		"--volume", gopath+":/go",
+		"--volume", tmpPath+":/output",
+		"golang:latest",
+		"go",
+		"build",
+		"-buildmode", "c-shared",
+		"-o", "/output/out_syslog.so",
+		"github.com/oratos/out_syslog/cmd",
+	)
+	sess, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
+	Expect(err).ToNot(HaveOccurred())
+	sess.Wait(time.Minute)
+
+	return path.Join(tmpPath, "out_syslog.so"), func() {
+		err := os.RemoveAll(tmpPath)
+		Expect(err).ToNot(HaveOccurred())
+	}
+}
+
+func goPath() (string, error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	absWd, err := filepath.Abs(wd)
+	if err != nil {
+		return "", err
+	}
+	for _, path := range strings.Split(os.Getenv("GOPATH"), ":") {
+		absPath, err := filepath.Abs(path)
+		if err != nil {
+			continue
+		}
+		if strings.Contains(absWd, absPath) {
+			return absPath, nil
+		}
+	}
+	return "", errors.New("unable to find go path dir")
 }
