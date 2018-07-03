@@ -37,7 +37,7 @@ var _ = AfterSuite(func() {
 
 func detectDocker() {
 	cmd := exec.Command("which", "docker")
-	sess, err := gexec.Start(cmd, ioutil.Discard, ioutil.Discard)
+	sess, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
 	Expect(err).ToNot(HaveOccurred())
 	sess.Wait()
 	if sess.ExitCode() != 0 {
@@ -66,7 +66,7 @@ func buildPlugin() (string, func()) {
 	)
 	sess, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
 	Expect(err).ToNot(HaveOccurred())
-	sess.Wait(time.Minute)
+	sess.Wait(5 * time.Minute)
 
 	return path.Join(tmpPath, "out_syslog.so"), func() {
 		err := os.RemoveAll(tmpPath)
