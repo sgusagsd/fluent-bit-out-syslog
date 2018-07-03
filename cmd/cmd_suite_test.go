@@ -27,12 +27,24 @@ var (
 )
 
 var _ = BeforeSuite(func() {
+	detectDocker()
 	pluginPath, cleanup = buildPlugin()
 })
 
 var _ = AfterSuite(func() {
 	cleanup()
 })
+
+func detectDocker() {
+	cmd := exec.Command("which", "docker")
+	sess, err := gexec.Start(cmd, ioutil.Discard, ioutil.Discard)
+	Expect(err).ToNot(HaveOccurred())
+	sess.Wait()
+	if sess.ExitCode() != 0 {
+		Fail("docker is required to be installed and running on your machine" +
+			" in order to build the plugin and run it with fluent bit")
+	}
+}
 
 func buildPlugin() (string, func()) {
 	tmpPath, err := ioutil.TempDir("/tmp", "")
