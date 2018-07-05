@@ -4,8 +4,8 @@
 **How to Build:**
 
 ```
-go get -d github.com/oratos/out_syslog/...
-go build -buildmode c-shared -o out_syslog.so github.com/oratos/out_syslog/cmd
+go get -d github.com/pivotal-cf/fluent-bit-out-syslog/...
+go build -buildmode c-shared -o out_syslog.so github.com/pivotal-cf/fluent-bit-out-syslog/cmd
 ```
 
 **How to Run:**
@@ -20,5 +20,5 @@ fluent-bit \
 
 **Run Linter:**
 ```
-./scripts/run-linter.sh
+./tests/run-linter.sh
 ```
