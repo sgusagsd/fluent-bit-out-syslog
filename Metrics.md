@@ -1,5 +1,7 @@
 # Metrics
 
+Metrics for monitoring and trouble shooting fluent-bit syslog plugin issues
+
 ## failed_flush_cnt
 
 - failed_flush_cnt: How many log entries failed to been flushed

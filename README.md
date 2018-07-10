@@ -45,5 +45,6 @@ fluent-bit \
 ./tests/run-linter.sh
 ```
 
-**Metrics Fluent-bit Syslog Plugin Exports*
+**Metrics Fluent-bit Syslog Plugin Exports**
+
 [Metrics.md](Metrics.md)
