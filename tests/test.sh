@@ -35,13 +35,14 @@ function shell_exit {
 
 trap shell_exit SIGHUP SIGINT SIGTERM 0
 ################################################################################
+cd "$(dirname "$0")"
 echo "Note: The whole test would take 40 seconds on average"
 
 log "Build golang code"
 ./build-code.sh
 
 log "Wait for code build, which might take tens of seconds"
-wait_for "test -f out_syslog.so" 50
+wait_for "test -f out_syslog.so" 300
 
 log "Run: docker-compose down"
 docker-compose down
