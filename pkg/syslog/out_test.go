@@ -361,7 +361,9 @@ var _ = Describe("Out", func() {
 			spyDrain := newTLSSpyDrain()
 			defer spyDrain.stop()
 
-			tlsConfig := &tls.Config{InsecureSkipVerify: true}
+			tlsConfig := &tls.Config{
+				InsecureSkipVerify: true,
+			}
 			out := syslog.NewTLSOut(spyDrain.url(), syslog.WithTLSConfig(tlsConfig), syslog.WithDialTimeout(1*time.Second))
 			record := map[interface{}]interface{}{"log": []byte("some-log-message")}
 
@@ -382,7 +384,9 @@ var _ = Describe("Out", func() {
 			spyDrain := newSpyDrain()
 			defer spyDrain.stop()
 
-			tlsConfig := &tls.Config{InsecureSkipVerify: true}
+			tlsConfig := &tls.Config{
+				InsecureSkipVerify: true,
+			}
 			out := syslog.NewTLSOut(spyDrain.url(), syslog.WithTLSConfig(tlsConfig), syslog.WithDialTimeout(1*time.Second))
 			record := map[interface{}]interface{}{"log": []byte("some-log-message")}
 
