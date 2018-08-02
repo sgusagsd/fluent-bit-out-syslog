@@ -13,97 +13,97 @@ import (
 // TODO: Address issues where messages are malformed but we are not notifying
 // the user.
 
+type TLS struct {
+	InsecureSkipVerify bool          `json:"insecure_skip_verify"`
+	Timeout            time.Duration `json:"timeout"`
+}
+
+type Sink struct {
+	Addr               string       `json:"addr"`
+	Namespace          string       `json:"namespace"`
+	TLS                *TLS         `json:"tls"`
+	conn               net.Conn     `json:"conn"`
+	maintainConnection func() error `json:"maintain_connection"`
+}
+
+// func MarshallSinks() []byte
 // Out writes fluentbit messages via syslog TCP (RFC 5424 and RFC 6587).
 type Out struct {
-	addr               string
-	conn               net.Conn
-	maintainConnection func() error
-	timeout            time.Duration
-	tlsConfig          *tls.Config
+	sinks map[string][]*Sink
 }
 
-type TLSOutOption func(*Out)
-
-func WithTLSConfig(c *tls.Config) TLSOutOption {
-	return func(o *Out) {
-		o.tlsConfig = c
-	}
-}
-
-func WithDialTimeout(timeout time.Duration) TLSOutOption {
-	return func(o *Out) {
-		o.timeout = timeout
-	}
-}
-
-func NewTLSOut(addr string, opts ...TLSOutOption) *Out {
-	out := &Out{
-		addr:      addr,
-		tlsConfig: &tls.Config{},
-		timeout:   0,
-	}
-
-	out.maintainConnection = func() error {
-		if out.conn == nil {
-			dialer := net.Dialer{
-				Timeout: out.timeout,
+func NewOut(sinks []*Sink) *Out {
+	m := make(map[string][]*Sink)
+	for _, s := range sinks {
+		if s.TLS != nil {
+			s.maintainConnection = func() error {
+				if s.conn == nil {
+					dialer := net.Dialer{
+						Timeout: s.TLS.Timeout,
+					}
+					conn, err := tls.DialWithDialer(
+						&dialer,
+						"tcp",
+						s.Addr,
+						&tls.Config{
+							InsecureSkipVerify: s.TLS.InsecureSkipVerify,
+						},
+					)
+					s.conn = conn
+					return err
+				}
+				return nil
 			}
-
-			conn, err := tls.DialWithDialer(
-				&dialer,
-				"tcp",
-				out.addr,
-				out.tlsConfig,
-			)
-
-			out.conn = conn
-			return err
+		} else {
+			s.maintainConnection = func() error {
+				if s.conn == nil {
+					conn, err := net.Dial("tcp", s.Addr)
+					s.conn = conn
+					return err
+				}
+				return nil
+			}
 		}
-		return nil
+		m[s.Namespace] = append(m[s.Namespace], s)
 	}
 
-	for _, o := range opts {
-		o(out)
+	return &Out{
+		sinks: m,
 	}
 
-	return out
-}
-
-// NewOut creates a new
-func NewOut(addr string) *Out {
-	o := &Out{
-		addr: addr,
-	}
-
-	o.maintainConnection = func() error {
-		if o.conn == nil {
-			conn, err := net.Dial("tcp", o.addr)
-			o.conn = conn
-			return err
-		}
-		return nil
-	}
-
-	return o
 }
 
 // Write takes a record, timestamp, and tag and converts it into a syslog
-// message and writes it out to the connection. If no connection is
-// established one will be established.
+// message and filters it to the connection with the matching namespace. If
+// there are no connections configured for a record's namespace, it drops the
+// message. If no connection is established one will be established.
 func (o *Out) Write(
 	record map[interface{}]interface{},
 	ts time.Time,
 	tag string,
 ) error {
-	err := o.maintainConnection()
+
+	msg, namespace := convert(record, ts, tag)
+
+	ss, ok := o.sinks[namespace]
+	if !ok {
+		return nil
+	}
+
+	// TODO: loop the sinks
+	s := ss[0]
+	return s.Write(msg)
+}
+
+func (s *Sink) Write(m *rfc5424.Message) error {
+	err := s.maintainConnection()
 	if err != nil {
 		return err
 	}
 
-	msg := convert(record, ts, tag)
-	_, err = msg.WriteTo(o.conn)
+	_, err = m.WriteTo(s.conn)
 	if err != nil {
-		o.conn = nil
+		s.conn = nil
 		return err
 	}
 	return nil
@@ -113,7 +113,7 @@ func convert(
 	record map[interface{}]interface{},
 	ts time.Time,
 	tag string,
-) *rfc5424.Message {
+) (*rfc5424.Message, string) {
 	var (
 		logmsg []byte
 		k8sMap map[interface{}]interface{}
@@ -208,5 +208,5 @@ func convert(
 		Hostname:  host,
 		AppName:   appName,
 		Message:   logmsg,
-	}
+	}, namespaceName
 }

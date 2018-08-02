@@ -1,7 +1,6 @@
 package syslog_test
 
 import (
-	"crypto/tls"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -12,26 +11,15 @@ import (
 
 var _ = Describe("Out", func() {
 	Context("Insecure TCP", func() {
-		It("writes messages via syslog", func() {
+		It("filters messages based on namespace_name in kubernetes metadata", func() {
 			spyDrain := newSpyDrain()
 			defer spyDrain.stop()
 
-			out := syslog.NewOut(spyDrain.url())
-
-			record := map[interface{}]interface{}{"log": []byte("some-log-message")}
-			err := out.Write(record, time.Unix(0, 0).UTC(), "")
-			Expect(err).ToNot(HaveOccurred())
-
-			spyDrain.expectReceived(
-				"59 <14>1 1970-01-01T00:00:00+00:00 - - - - - some-log-message\n",
-			)
-		})
-
-		It("writes kubernetes metadata to message", func() {
-			spyDrain := newSpyDrain()
-			defer spyDrain.stop()
-
-			out := syslog.NewOut(spyDrain.url())
+			s := syslog.Sink{
+				Addr:      spyDrain.url(),
+				Namespace: "kube-system",
+			}
+			out := syslog.NewOut([]*syslog.Sink{&s})
 			record := map[interface{}]interface{}{
 				"log": []byte("some-log"),
 				"kubernetes": map[interface{}]interface{}{
@@ -50,18 +38,60 @@ var _ = Describe("Out", func() {
 			)
 		})
 
+		It("drops messages with unconfigured namespaces", func() {
+			spyDrain := newSpyDrain()
+			defer spyDrain.stop()
+
+			s := syslog.Sink{
+				Addr:      spyDrain.url(),
+				Namespace: "test-namespace",
+			}
+			out := syslog.NewOut([]*syslog.Sink{&s})
+			r1 := map[interface{}]interface{}{
+				"log": []byte("some-log"),
+				"kubernetes": map[interface{}]interface{}{
+					"pod_name":       []byte("etcd-minikube"),
+					"namespace_name": []byte("kube-system"),
+					"host":           []byte("some-host"),
+					"container_name": []byte("etcd"),
+				},
+			}
+			r2 := map[interface{}]interface{}{
+				"log": []byte("some-log"),
+				"kubernetes": map[interface{}]interface{}{
+					"pod_name":       []byte("etcd-minikube"),
+					"namespace_name": []byte("test-namespace"),
+					"host":           []byte("some-host"),
+					"container_name": []byte("etcd"),
+				},
+			}
+
+			err := out.Write(r1, time.Unix(0, 0).UTC(), "")
+			Expect(err).ToNot(HaveOccurred())
+			err = out.Write(r2, time.Unix(0, 0).UTC(), "")
+			Expect(err).ToNot(HaveOccurred())
+
+			spyDrain.expectReceivedOnly(
+				"95 <14>1 1970-01-01T00:00:00+00:00 some-host test-namespace/pod/etcd-minikube/etcd - - - some-log\n",
+			)
+		})
+
 		It("truncates the app name if there is too much information", func() {
 			spyDrain := newSpyDrain()
 			defer spyDrain.stop()
 
-			out := syslog.NewOut(spyDrain.url())
+			s := syslog.Sink{
+				Addr:      spyDrain.url(),
+				Namespace: "namespace-name-very-long",
+			}
+			out := syslog.NewOut([]*syslog.Sink{&s})
 			record := map[interface{}]interface{}{
 				"log": []byte("some-log"),
 				"kubernetes": map[interface{}]interface{}{
-					"pod_name":       []byte("very-long-pod-name"),
-					"namespace_name": []byte("very-long-namespace-name"),
+					"pod_name":       []byte("pod-name"),
+					"namespace_name": []byte("namespace-name-very-long"),
 					"host":           []byte("some-host"),
-					"container_name": []byte("very-long-container-name"),
+					"container_name": []byte("container-name-very-long"),
 				},
 			}
 
@@ -69,27 +99,43 @@ var _ = Describe("Out", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			spyDrain.expectReceived(
-				"106 <14>1 1970-01-01T00:00:00+00:00 some-host very-long-namespace-name/pod/very-long-pod-name/ - - - some-log\n",
+				"106 <14>1 1970-01-01T00:00:00+00:00 some-host namespace-name-very-long/pod/pod-name/container- - - - some-log\n",
 			)
 		})
 
 		It("doesn't add a newline if one already exists in the message", func() {
 			spyDrain := newSpyDrain()
 			defer spyDrain.stop()
-			out := syslog.NewOut(spyDrain.url())
-			record := map[interface{}]interface{}{"log": []byte("some-log\n")}
+
+			s := syslog.Sink{
+				Addr:      spyDrain.url(),
+				Namespace: "namespace-name-very-long",
+			}
+			out := syslog.NewOut([]*syslog.Sink{&s})
+			record := map[interface{}]interface{}{
+				"log": []byte("some-log\n"),
+				"kubernetes": map[interface{}]interface{}{
+					"pod_name":       []byte("pod-name"),
+					"namespace_name": []byte("namespace-name-very-long"),
+					"host":           []byte("some-host"),
+					"container_name": []byte("container-name-very-long"),
+				},
+			}
 
 			err := out.Write(record, time.Unix(0, 0).UTC(), "")
 
 			Expect(err).ToNot(HaveOccurred())
 			spyDrain.expectReceivedOnly(
-				"51 <14>1 1970-01-01T00:00:00+00:00 - - - - - some-log\n",
+				"106 <14>1 1970-01-01T00:00:00+00:00 some-host namespace-name-very-long/pod/pod-name/container- - - - some-log\n",
 			)
 		})
 
 		It("returns an error when unable to write the message", func() {
 			spyDrain := newSpyDrain()
-			out := syslog.NewOut(spyDrain.url())
+			s := syslog.Sink{
+				Addr: spyDrain.url(),
+			}
+			out := syslog.NewOut([]*syslog.Sink{&s})
 			spyDrain.stop()
 
 			err := out.Write(nil, time.Time{}, "")
@@ -100,32 +146,51 @@ var _ = Describe("Out", func() {
 		It("eventually connects to a failing syslog drain", func() {
 			spyDrain := newSpyDrain()
 			spyDrain.stop()
-			out := syslog.NewOut(spyDrain.url())
+			s := syslog.Sink{
+				Addr:      spyDrain.url(),
+				Namespace: "some-namespace",
+			}
+			out := syslog.NewOut([]*syslog.Sink{&s})
+			record := map[interface{}]interface{}{
+				"log": []byte("some-log-message"),
+				"kubernetes": map[interface{}]interface{}{
+					"namespace_name": []byte("some-namespace"),
+				},
+			}
+
+			err := out.Write(record, time.Unix(0, 0).UTC(), "")
+			Expect(err).To(HaveOccurred())
 
 			spyDrain = newSpyDrain(spyDrain.url())
 
-			record := map[interface{}]interface{}{"log": []byte("some-log-message")}
-
-			err := out.Write(record, time.Unix(0, 0).UTC(), "")
+			err = out.Write(record, time.Unix(0, 0).UTC(), "")
 			Expect(err).ToNot(HaveOccurred())
 
 			spyDrain.expectReceived(
-				"59 <14>1 1970-01-01T00:00:00+00:00 - - - - - some-log-message\n",
+				"78 <14>1 1970-01-01T00:00:00+00:00 - some-namespace/pod// - - - some-log-message\n",
 			)
 		})
 
 		It("doesn't reconnect if connection already established", func() {
 			spyDrain := newSpyDrain()
 			defer spyDrain.stop()
-			out := syslog.NewOut(spyDrain.url())
+			s := syslog.Sink{
+				Addr:      spyDrain.url(),
+				Namespace: "some-namespace",
+			}
+			out := syslog.NewOut([]*syslog.Sink{&s})
 
-			record := map[interface{}]interface{}{"log": []byte("some-log-message")}
-
+			record := map[interface{}]interface{}{
+				"log": []byte("some-log-message"),
+				"kubernetes": map[interface{}]interface{}{
+					"namespace_name": []byte("some-namespace"),
+				},
+			}
 			err := out.Write(record, time.Unix(0, 0).UTC(), "")
 			Expect(err).ToNot(HaveOccurred())
 
 			spyDrain.expectReceived(
-				"59 <14>1 1970-01-01T00:00:00+00:00 - - - - - some-log-message\n",
+				"78 <14>1 1970-01-01T00:00:00+00:00 - some-namespace/pod// - - - some-log-message\n",
 			)
 
 			err = out.Write(record, time.Unix(0, 0).UTC(), "")
@@ -142,40 +207,133 @@ var _ = Describe("Out", func() {
 
 		It("reconnects if previous connection went away", func() {
 			spyDrain := newSpyDrain()
-			out := syslog.NewOut(spyDrain.url())
-			record1 := map[interface{}]interface{}{"log": []byte("some-log-message-1")}
+			s := syslog.Sink{
+				Addr:      spyDrain.url(),
+				Namespace: "some-namespace",
+			}
+			out := syslog.NewOut([]*syslog.Sink{&s})
+			r1 := map[interface{}]interface{}{
+				"log": []byte("some-log-message"),
+				"kubernetes": map[interface{}]interface{}{
+					"namespace_name": []byte("some-namespace"),
+				},
+			}
 
-			err := out.Write(record1, time.Unix(0, 0).UTC(), "")
+			err := out.Write(r1, time.Unix(0, 0).UTC(), "")
 			Expect(err).ToNot(HaveOccurred())
 			spyDrain.expectReceived(
-				"61 <14>1 1970-01-01T00:00:00+00:00 - - - - - some-log-message-1\n",
+				"78 <14>1 1970-01-01T00:00:00+00:00 - some-namespace/pod// - - - some-log-message\n",
 			)
 
 			spyDrain.stop()
 			spyDrain = newSpyDrain(spyDrain.url())
 
-			record2 := map[interface{}]interface{}{"log": []byte("some-log-message-2")}
+			r2 := map[interface{}]interface{}{
+				"log": []byte("some-log-message-2"),
+				"kubernetes": map[interface{}]interface{}{
+					"namespace_name": []byte("some-namespace"),
+				},
+			}
 
 			f := func() error {
-				return out.Write(record2, time.Unix(0, 0).UTC(), "")
+				return out.Write(r2, time.Unix(0, 0).UTC(), "")
 			}
 			Eventually(f).Should(HaveOccurred())
 
-			err = out.Write(record2, time.Unix(0, 0).UTC(), "")
+			err = out.Write(r2, time.Unix(0, 0).UTC(), "")
 			Expect(err).ToNot(HaveOccurred())
 
 			spyDrain.expectReceived(
-				"61 <14>1 1970-01-01T00:00:00+00:00 - - - - - some-log-message-2\n",
+				"80 <14>1 1970-01-01T00:00:00+00:00 - some-namespace/pod// - - - some-log-message-2\n",
 			)
 		})
+
+		DescribeTable(
+			"sends no data when record",
+			func(record map[interface{}]interface{}, message string) {
+				spyDrain := newSpyDrain()
+				defer spyDrain.stop()
+				s := syslog.Sink{
+					Addr:      spyDrain.url(),
+					Namespace: "some-ns",
+				}
+				out := syslog.NewOut([]*syslog.Sink{&s})
+
+				err := out.Write(record, time.Unix(0, 0).UTC(), "")
+				Expect(err).ToNot(HaveOccurred())
+
+				done := make(chan struct{})
+				cleanup := make(chan struct{})
+				defer close(cleanup)
+				go func() {
+					select {
+					case <-cleanup:
+						return
+					default:
+						spyDrain.lis.Accept()
+						close(done)
+					}
+				}()
+
+				Consistently(done).ShouldNot(BeClosed())
+			},
+			Entry(
+				"has no k8s map",
+				map[interface{}]interface{}{
+					"log": []byte("some-log"),
+				},
+				"",
+			),
+			Entry(
+				"has k8s map of different type",
+				map[interface{}]interface{}{
+					"log": []byte("some-log"),
+					"kubernetes": map[string][]byte{
+						"host":           []byte("some-host"),
+						"namespace_name": []byte("some-ns"),
+						"pod_name":       []byte("some-pod"),
+						"container_name": []byte("some-container"),
+					},
+				},
+				"",
+			),
+			Entry(
+				"has no namespace name",
+				map[interface{}]interface{}{
+					"log": []byte("some-log"),
+					"kubernetes": map[interface{}]interface{}{
+						"host":           []byte("some-host"),
+						"pod_name":       []byte("some-pod"),
+						"container_name": []byte("some-container"),
+					},
+				},
+				"86 <14>1 1970-01-01T00:00:00+00:00 some-host /pod/some-pod/some-container - - - some-log\n",
+			),
+			Entry(
+				"has namespace of different type",
+				map[interface{}]interface{}{
+					"log": []byte("some-log"),
+					"kubernetes": map[interface{}]interface{}{
+						"host":           []byte("some-host"),
+						"namespace_name": []int{1, 2, 3, 4},
+						"pod_name":       []byte("some-pod"),
+						"container_name": []byte("some-container"),
+					},
+				},
+				"86 <14>1 1970-01-01T00:00:00+00:00 some-host /pod/some-pod/some-container - - - some-log\n",
+			),
+		)
 
 		DescribeTable(
 			"missing data",
 			func(record map[interface{}]interface{}, message string) {
 				spyDrain := newSpyDrain()
 				defer spyDrain.stop()
-
-				out := syslog.NewOut(spyDrain.url())
+				s := syslog.Sink{
+					Addr:      spyDrain.url(),
+					Namespace: "some-ns",
+				}
+				out := syslog.NewOut([]*syslog.Sink{&s})
 
 				err := out.Write(record, time.Unix(0, 0).UTC(), "")
 				Expect(err).ToNot(HaveOccurred())
@@ -219,26 +377,6 @@ var _ = Describe("Out", func() {
 					},
 				},
 				"85 <14>1 1970-01-01T00:00:00+00:00 some-host some-ns/pod/some-pod/some-container - - - \n",
-			),
-			Entry(
-				"no k8s map",
-				map[interface{}]interface{}{
-					"log": []byte("some-log"),
-				},
-				"51 <14>1 1970-01-01T00:00:00+00:00 - - - - - some-log\n",
-			),
-			Entry(
-				"k8s map is of different type",
-				map[interface{}]interface{}{
-					"log": []byte("some-log"),
-					"kubernetes": map[string][]byte{
-						"host":           []byte("some-host"),
-						"namespace_name": []byte("some-ns"),
-						"pod_name":       []byte("some-pod"),
-						"container_name": []byte("some-container"),
-					},
-				},
-				"51 <14>1 1970-01-01T00:00:00+00:00 - - - - - some-log\n",
 			),
 			Entry(
 				"no host",
@@ -328,31 +466,6 @@ var _ = Describe("Out", func() {
 				},
 				"85 <14>1 1970-01-01T00:00:00+00:00 some-host some-ns/pod//some-container - - - some-log\n",
 			),
-			Entry(
-				"no namespace name",
-				map[interface{}]interface{}{
-					"log": []byte("some-log"),
-					"kubernetes": map[interface{}]interface{}{
-						"host":           []byte("some-host"),
-						"pod_name":       []byte("some-pod"),
-						"container_name": []byte("some-container"),
-					},
-				},
-				"86 <14>1 1970-01-01T00:00:00+00:00 some-host /pod/some-pod/some-container - - - some-log\n",
-			),
-			Entry(
-				"namespace is of different type",
-				map[interface{}]interface{}{
-					"log": []byte("some-log"),
-					"kubernetes": map[interface{}]interface{}{
-						"host":           []byte("some-host"),
-						"namespace_name": []int{1, 2, 3, 4},
-						"pod_name":       []byte("some-pod"),
-						"container_name": []byte("some-container"),
-					},
-				},
-				"86 <14>1 1970-01-01T00:00:00+00:00 some-host /pod/some-pod/some-container - - - some-log\n",
-			),
 		)
 	})
 
@@ -361,22 +474,33 @@ var _ = Describe("Out", func() {
 			spyDrain := newTLSSpyDrain()
 			defer spyDrain.stop()
 
-			tlsConfig := &tls.Config{
-				InsecureSkipVerify: true,
+			s := &syslog.Sink{
+				Addr:      spyDrain.url(),
+				Namespace: "some-ns",
+				TLS: &syslog.TLS{
+					InsecureSkipVerify: true,
+					Timeout:            time.Second,
+				},
 			}
-			out := syslog.NewTLSOut(spyDrain.url(), syslog.WithTLSConfig(tlsConfig), syslog.WithDialTimeout(1*time.Second))
-			record := map[interface{}]interface{}{"log": []byte("some-log-message")}
+
+			out := syslog.NewOut([]*syslog.Sink{s})
+			r := map[interface{}]interface{}{
+				"log": []byte("some-log"),
+				"kubernetes": map[interface{}]interface{}{
+					"namespace_name": []byte("some-ns"),
+				},
+			}
 
 			// TLS will block on waiting for handshake so the write needs
 			// to occur in a separate go routine
 			go func() {
 				defer GinkgoRecover()
-				err := out.Write(record, time.Unix(0, 0).UTC(), "")
+				err := out.Write(r, time.Unix(0, 0).UTC(), "")
 				Expect(err).ToNot(HaveOccurred())
 			}()
 
 			spyDrain.expectReceivedOnly(
-				"59 <14>1 1970-01-01T00:00:00+00:00 - - - - - some-log-message\n",
+				"63 <14>1 1970-01-01T00:00:00+00:00 - some-ns/pod// - - - some-log\n",
 			)
 		})
 
@@ -384,13 +508,24 @@ var _ = Describe("Out", func() {
 			spyDrain := newSpyDrain()
 			defer spyDrain.stop()
 
-			tlsConfig := &tls.Config{
-				InsecureSkipVerify: true,
+			s := &syslog.Sink{
+				Addr:      spyDrain.url(),
+				Namespace: "some-ns",
+				TLS: &syslog.TLS{
+					InsecureSkipVerify: true,
+					Timeout:            time.Second,
+				},
 			}
-			out := syslog.NewTLSOut(spyDrain.url(), syslog.WithTLSConfig(tlsConfig), syslog.WithDialTimeout(1*time.Second))
-			record := map[interface{}]interface{}{"log": []byte("some-log-message")}
 
-			err := out.Write(record, time.Unix(0, 0).UTC(), "")
+			out := syslog.NewOut([]*syslog.Sink{s})
+			r := map[interface{}]interface{}{
+				"log": []byte("some-log"),
+				"kubernetes": map[interface{}]interface{}{
+					"namespace_name": []byte("some-ns"),
+				},
+			}
+
+			err := out.Write(r, time.Unix(0, 0).UTC(), "")
 			Expect(err).To(HaveOccurred())
 		})
 	})

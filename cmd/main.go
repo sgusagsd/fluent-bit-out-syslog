@@ -2,16 +2,16 @@ package main
 
 import (
 	"C"
-	"crypto/tls"
 	"unsafe"
 
 	"log"
 
-	"strings"
-	"time"
-
 	"github.com/fluent/fluent-bit-go/output"
 	"github.com/pivotal-cf/fluent-bit-out-syslog/pkg/syslog"
+)
+import (
+	"encoding/json"
+	"strings"
 )
 
 var out *syslog.Out
@@ -27,24 +27,17 @@ func FLBPluginRegister(ctx unsafe.Pointer) int {
 
 //export FLBPluginInit
 func FLBPluginInit(ctx unsafe.Pointer) int {
-	addr := output.FLBPluginConfigKey(ctx, "addr")
-	log.Println("[out_syslog] addr = ", addr)
+	s := output.FLBPluginConfigKey(ctx, "sinks")
+	log.Println("[out_syslog] sinks = ", s)
 
-	enable_tls := output.FLBPluginConfigKey(ctx, "enable_tls")
-	log.Println("[out_syslog] tls = ", enable_tls)
+	var sinks []*syslog.Sink
+	escapeS := strings.Trim(strings.Replace(s, `\"`, `"`, -1), "\"")
 
-	if strings.EqualFold(enable_tls, "true") {
-		skipVerifyS := output.FLBPluginConfigKey(ctx, "insecure_skip_verify")
-		log.Println("[out_syslog] insecure_skip_verify = ", skipVerifyS)
-
-		skipVerify := strings.EqualFold(skipVerifyS, "true")
-
-		tlsConfig := &tls.Config{InsecureSkipVerify: skipVerify}
-		out = syslog.NewTLSOut(addr, syslog.WithTLSConfig(tlsConfig), syslog.WithDialTimeout(5*time.Second))
-		return output.FLB_OK
+	err := json.Unmarshal([]byte(escapeS), &sinks)
+	if err != nil {
+		return output.FLB_ERROR
 	}
-
-	out = syslog.NewOut(addr)
+	out = syslog.NewOut(sinks)
 	return output.FLB_OK
 }
 
