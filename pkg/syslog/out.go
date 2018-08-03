@@ -26,44 +26,21 @@ type Sink struct {
 	maintainConnection func() error `json:"maintain_connection"`
 }
 
-// func MarshallSinks() []byte
 // Out writes fluentbit messages via syslog TCP (RFC 5424 and RFC 6587).
 type Out struct {
 	sinks map[string][]*Sink
 }
 
+// NewOut returns a new Out which handles both tcp and tls connections
 func NewOut(sinks []*Sink) *Out {
 	m := make(map[string][]*Sink)
 	for _, s := range sinks {
 		if s.TLS != nil {
-			s.maintainConnection = func() error {
-				if s.conn == nil {
-					dialer := net.Dialer{
-						Timeout: s.TLS.Timeout,
-					}
-					conn, err := tls.DialWithDialer(
-						&dialer,
-						"tcp",
-						s.Addr,
-						&tls.Config{
-							InsecureSkipVerify: s.TLS.InsecureSkipVerify,
-						},
-					)
-					s.conn = conn
-					return err
-				}
-				return nil
-			}
+			s.maintainConnection = tlsMaintainConn(s)
 		} else {
-			s.maintainConnection = func() error {
-				if s.conn == nil {
-					conn, err := net.Dial("tcp", s.Addr)
-					s.conn = conn
-					return err
-				}
-				return nil
-			}
+			s.maintainConnection = tcpMaintainConn(s)
 		}
+
 		m[s.Namespace] = append(m[s.Namespace], s)
 	}
 
@@ -74,9 +51,12 @@ func NewOut(sinks []*Sink) *Out {
 }
 
 // Write takes a record, timestamp, and tag and converts it into a syslog
-// message and filters it to the connection with the matching namespace. If
-// there are no connections configured for a record's namespace, it drops the
-// message. If no connection is established one will be established.
+// message and filters it to the connection with the matching namespace.
+// If there are no connections configured for a record's namespace, it drops the
+// message.
+// If no connection is established one will be established per sink upon a
+// Write operation.
+// If all sinks for a namespace fail to write, Write will return an error.
 func (o *Out) Write(
 	record map[interface{}]interface{},
 	ts time.Time,
@@ -85,14 +65,21 @@ func (o *Out) Write(
 
 	msg, namespace := convert(record, ts, tag)
 
-	ss, ok := o.sinks[namespace]
+	namespaceSinks, ok := o.sinks[namespace]
 	if !ok {
 		return nil
 	}
 
-	// TODO: loop the sinks
-	s := ss[0]
-	return s.Write(msg)
+	errCount := 0
+	for _, s := range namespaceSinks {
+		if s.Write(msg) != nil {
+			errCount++
+		}
+	}
+	if errCount == len(namespaceSinks) {
+		return fmt.Errorf("failed to write to all sinks for namespace: %s", namespace)
+	}
+	return nil
 }
 
 func (s *Sink) Write(m *rfc5424.Message) error {
@@ -107,6 +94,41 @@ func (s *Sink) Write(m *rfc5424.Message) error {
 		return err
 	}
 	return nil
+}
+
+func tlsMaintainConn(s *Sink) func() error {
+	return func() error {
+		if s.conn == nil {
+			dialer := net.Dialer{
+				Timeout: s.TLS.Timeout,
+			}
+			var conn net.Conn // conn needs to be of type net.Conn, not *tls.Conn
+			conn, err := tls.DialWithDialer(
+				&dialer,
+				"tcp",
+				s.Addr,
+				&tls.Config{
+					InsecureSkipVerify: s.TLS.InsecureSkipVerify,
+				},
+			)
+			if err == nil {
+				s.conn = conn
+			}
+			return err
+		}
+		return nil
+	}
+}
+
+func tcpMaintainConn(s *Sink) func() error {
+	return func() error {
+		if s.conn == nil {
+			conn, err := net.Dial("tcp", s.Addr)
+			s.conn = conn
+			return err
+		}
+		return nil
+	}
 }
 
 func convert(

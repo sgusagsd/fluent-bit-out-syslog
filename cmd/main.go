@@ -11,7 +11,6 @@ import (
 )
 import (
 	"encoding/json"
-	"strings"
 )
 
 var out *syslog.Out
@@ -31,9 +30,8 @@ func FLBPluginInit(ctx unsafe.Pointer) int {
 	log.Println("[out_syslog] sinks = ", s)
 
 	var sinks []*syslog.Sink
-	escapeS := strings.Trim(strings.Replace(s, `\"`, `"`, -1), "\"")
 
-	err := json.Unmarshal([]byte(escapeS), &sinks)
+	err := json.Unmarshal([]byte(s), &sinks)
 	if err != nil {
 		return output.FLB_ERROR
 	}
