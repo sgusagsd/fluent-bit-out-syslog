@@ -776,7 +776,7 @@ var _ = Describe("Out", func() {
 				Namespace: "some-ns",
 				TLS: &syslog.TLS{
 					InsecureSkipVerify: true,
-					Timeout:            time.Second,
+					Timeout:            time.Millisecond,
 				},
 			}
 
