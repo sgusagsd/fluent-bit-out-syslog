@@ -10,11 +10,11 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-type spyDrain struct {
+type spySink struct {
 	lis net.Listener
 }
 
-func newTLSSpyDrain(addr ...string) *spyDrain {
+func newTLSSpySink(addr ...string) *spySink {
 	a := ":0"
 	if len(addr) != 0 {
 		a = addr[0]
@@ -30,12 +30,12 @@ func newTLSSpyDrain(addr ...string) *spyDrain {
 	lis, err := tls.Listen("tcp", a, config)
 	Expect(err).ToNot(HaveOccurred())
 
-	return &spyDrain{
+	return &spySink{
 		lis: lis,
 	}
 }
 
-func newSpyDrain(addr ...string) *spyDrain {
+func newSpySink(addr ...string) *spySink {
 	a := ":0"
 	if len(addr) != 0 {
 		a = addr[0]
@@ -43,26 +43,26 @@ func newSpyDrain(addr ...string) *spyDrain {
 	lis, err := net.Listen("tcp", a)
 	Expect(err).ToNot(HaveOccurred())
 
-	return &spyDrain{
+	return &spySink{
 		lis: lis,
 	}
 }
 
-func (s *spyDrain) url() string {
+func (s *spySink) url() string {
 	return s.lis.Addr().String()
 }
 
-func (s *spyDrain) stop() {
+func (s *spySink) stop() {
 	_ = s.lis.Close()
 }
 
-func (s *spyDrain) accept() net.Conn {
+func (s *spySink) accept() net.Conn {
 	conn, err := s.lis.Accept()
 	Expect(err).ToNot(HaveOccurred())
 	return conn
 }
 
-func (s *spyDrain) expectReceived(msgs ...string) {
+func (s *spySink) expectReceived(msgs ...string) {
 	conn := s.accept()
 	defer func() {
 		_ = conn.Close()
@@ -76,7 +76,7 @@ func (s *spyDrain) expectReceived(msgs ...string) {
 	}
 }
 
-func (s *spyDrain) expectReceivedOnly(msgs ...string) {
+func (s *spySink) expectReceivedOnly(msgs ...string) {
 	conn := s.accept()
 	defer func() {
 		_ = conn.Close()

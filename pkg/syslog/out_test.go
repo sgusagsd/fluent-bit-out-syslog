@@ -11,9 +11,9 @@ import (
 
 var _ = Describe("Out", func() {
 	It("doesn't return an error if it fails to write to one of the sinks in a namespace", func() {
-		spySink1 := newSpyDrain()
+		spySink1 := newSpySink()
 		spySink1.stop()
-		spySink2 := newSpyDrain()
+		spySink2 := newSpySink()
 		defer spySink2.stop()
 
 		s1 := &syslog.Sink{
@@ -41,9 +41,9 @@ var _ = Describe("Out", func() {
 	})
 
 	It("returns an error if all sinks for a namespace fail to write successfully", func() {
-		spySink1 := newSpyDrain()
+		spySink1 := newSpySink()
 		spySink1.stop()
-		spySink2 := newSpyDrain()
+		spySink2 := newSpySink()
 		spySink2.stop()
 
 		s1 := &syslog.Sink{
@@ -67,11 +67,11 @@ var _ = Describe("Out", func() {
 	})
 
 	It("filters messages based on namespace_name in kubernetes metadata", func() {
-		spyDrain := newSpyDrain()
-		defer spyDrain.stop()
+		spySink := newSpySink()
+		defer spySink.stop()
 
 		s := syslog.Sink{
-			Addr:      spyDrain.url(),
+			Addr:      spySink.url(),
 			Namespace: "kube-system",
 		}
 		out := syslog.NewOut([]*syslog.Sink{&s})
@@ -88,17 +88,17 @@ var _ = Describe("Out", func() {
 		err := out.Write(record, time.Unix(0, 0).UTC(), "")
 		Expect(err).ToNot(HaveOccurred())
 
-		spyDrain.expectReceived(
+		spySink.expectReceived(
 			"92 <14>1 1970-01-01T00:00:00+00:00 some-host kube-system/pod/etcd-minikube/etcd - - - some-log\n",
 		)
 	})
 
 	It("drops messages with unconfigured namespaces", func() {
-		spyDrain := newSpyDrain()
-		defer spyDrain.stop()
+		spySink := newSpySink()
+		defer spySink.stop()
 
 		s := syslog.Sink{
-			Addr:      spyDrain.url(),
+			Addr:      spySink.url(),
 			Namespace: "test-namespace",
 		}
 		out := syslog.NewOut([]*syslog.Sink{&s})
@@ -126,17 +126,17 @@ var _ = Describe("Out", func() {
 		err = out.Write(r2, time.Unix(0, 0).UTC(), "")
 		Expect(err).ToNot(HaveOccurred())
 
-		spyDrain.expectReceivedOnly(
+		spySink.expectReceivedOnly(
 			"95 <14>1 1970-01-01T00:00:00+00:00 some-host test-namespace/pod/etcd-minikube/etcd - - - some-log\n",
 		)
 	})
 
 	It("truncates the app name if there is too much information", func() {
-		spyDrain := newSpyDrain()
-		defer spyDrain.stop()
+		spySink := newSpySink()
+		defer spySink.stop()
 
 		s := syslog.Sink{
-			Addr:      spyDrain.url(),
+			Addr:      spySink.url(),
 			Namespace: "namespace-name-very-long",
 		}
 		out := syslog.NewOut([]*syslog.Sink{&s})
@@ -153,17 +153,17 @@ var _ = Describe("Out", func() {
 		err := out.Write(record, time.Unix(0, 0).UTC(), "")
 		Expect(err).ToNot(HaveOccurred())
 
-		spyDrain.expectReceived(
+		spySink.expectReceived(
 			"106 <14>1 1970-01-01T00:00:00+00:00 some-host namespace-name-very-long/pod/pod-name/container- - - - some-log\n",
 		)
 	})
 
 	It("doesn't add a newline if one already exists in the message", func() {
-		spyDrain := newSpyDrain()
-		defer spyDrain.stop()
+		spySink := newSpySink()
+		defer spySink.stop()
 
 		s := syslog.Sink{
-			Addr:      spyDrain.url(),
+			Addr:      spySink.url(),
 			Namespace: "namespace-name-very-long",
 		}
 		out := syslog.NewOut([]*syslog.Sink{&s})
@@ -180,7 +180,7 @@ var _ = Describe("Out", func() {
 		err := out.Write(record, time.Unix(0, 0).UTC(), "")
 
 		Expect(err).ToNot(HaveOccurred())
-		spyDrain.expectReceivedOnly(
+		spySink.expectReceivedOnly(
 			"106 <14>1 1970-01-01T00:00:00+00:00 some-host namespace-name-very-long/pod/pod-name/container- - - - some-log\n",
 		)
 	})
@@ -188,10 +188,10 @@ var _ = Describe("Out", func() {
 	DescribeTable(
 		"sends no data when record excludes pertinent info",
 		func(record map[interface{}]interface{}, message string) {
-			spyDrain := newSpyDrain()
-			defer spyDrain.stop()
+			spySink := newSpySink()
+			defer spySink.stop()
 			s := syslog.Sink{
-				Addr:      spyDrain.url(),
+				Addr:      spySink.url(),
 				Namespace: "some-ns",
 			}
 			out := syslog.NewOut([]*syslog.Sink{&s})
@@ -207,7 +207,7 @@ var _ = Describe("Out", func() {
 				case <-cleanup:
 					return
 				default:
-					spyDrain.lis.Accept()
+					spySink.lis.Accept()
 					close(done)
 				}
 			}()
@@ -264,10 +264,10 @@ var _ = Describe("Out", func() {
 	DescribeTable(
 		"prints even with some missing data",
 		func(record map[interface{}]interface{}, message string) {
-			spyDrain := newSpyDrain()
-			defer spyDrain.stop()
+			spySink := newSpySink()
+			defer spySink.stop()
 			s := syslog.Sink{
-				Addr:      spyDrain.url(),
+				Addr:      spySink.url(),
 				Namespace: "some-ns",
 			}
 			out := syslog.NewOut([]*syslog.Sink{&s})
@@ -275,7 +275,7 @@ var _ = Describe("Out", func() {
 			err := out.Write(record, time.Unix(0, 0).UTC(), "")
 			Expect(err).ToNot(HaveOccurred())
 
-			spyDrain.expectReceived(message)
+			spySink.expectReceived(message)
 		},
 		Entry(
 			"no log message",
@@ -406,9 +406,9 @@ var _ = Describe("Out", func() {
 	)
 	Context("TCP", func() {
 		It("filters messages to multiple sinks for a namespace", func() {
-			spySink1 := newSpyDrain()
+			spySink1 := newSpySink()
 			defer spySink1.stop()
-			spySink2 := newSpyDrain()
+			spySink2 := newSpySink()
 			defer spySink2.stop()
 
 			s1 := &syslog.Sink{
@@ -439,9 +439,9 @@ var _ = Describe("Out", func() {
 		})
 
 		It("filters messages to multiple namespaces", func() {
-			spySink1 := newSpyDrain()
+			spySink1 := newSpySink()
 			defer spySink1.stop()
-			spySink2 := newSpyDrain()
+			spySink2 := newSpySink()
 			defer spySink2.stop()
 
 			s1 := &syslog.Sink{
@@ -479,11 +479,11 @@ var _ = Describe("Out", func() {
 			)
 		})
 
-		It("eventually connects to a failing syslog drain", func() {
-			spyDrain := newSpyDrain()
-			spyDrain.stop()
+		It("eventually connects to a failing syslog sink", func() {
+			spySink := newSpySink()
+			spySink.stop()
 			s := syslog.Sink{
-				Addr:      spyDrain.url(),
+				Addr:      spySink.url(),
 				Namespace: "some-namespace",
 			}
 			out := syslog.NewOut([]*syslog.Sink{&s})
@@ -497,22 +497,22 @@ var _ = Describe("Out", func() {
 			err := out.Write(record, time.Unix(0, 0).UTC(), "")
 			Expect(err).To(HaveOccurred())
 
-			// bring the drain back to life
-			spyDrain = newSpyDrain(spyDrain.url())
+			// bring the sink back to life
+			spySink = newSpySink(spySink.url())
 
 			err = out.Write(record, time.Unix(0, 0).UTC(), "")
 			Expect(err).ToNot(HaveOccurred())
 
-			spyDrain.expectReceived(
+			spySink.expectReceived(
 				"78 <14>1 1970-01-01T00:00:00+00:00 - some-namespace/pod// - - - some-log-message\n",
 			)
 		})
 
 		It("doesn't reconnect if connection already established", func() {
-			spyDrain := newSpyDrain()
-			defer spyDrain.stop()
+			spySink := newSpySink()
+			defer spySink.stop()
 			s := syslog.Sink{
-				Addr:      spyDrain.url(),
+				Addr:      spySink.url(),
 				Namespace: "some-namespace",
 			}
 			out := syslog.NewOut([]*syslog.Sink{&s})
@@ -526,7 +526,7 @@ var _ = Describe("Out", func() {
 			err := out.Write(record, time.Unix(0, 0).UTC(), "")
 			Expect(err).ToNot(HaveOccurred())
 
-			spyDrain.expectReceived(
+			spySink.expectReceived(
 				"78 <14>1 1970-01-01T00:00:00+00:00 - some-namespace/pod// - - - some-log-message\n",
 			)
 
@@ -537,15 +537,15 @@ var _ = Describe("Out", func() {
 			go func() {
 				defer GinkgoRecover()
 				defer close(done)
-				_, _ = spyDrain.lis.Accept()
+				_, _ = spySink.lis.Accept()
 			}()
 			Consistently(done).ShouldNot(BeClosed())
 		})
 
 		It("reconnects if previous connection went away", func() {
-			spyDrain := newSpyDrain()
+			spySink := newSpySink()
 			s := syslog.Sink{
-				Addr:      spyDrain.url(),
+				Addr:      spySink.url(),
 				Namespace: "some-namespace",
 			}
 			out := syslog.NewOut([]*syslog.Sink{&s})
@@ -558,12 +558,12 @@ var _ = Describe("Out", func() {
 
 			err := out.Write(r1, time.Unix(0, 0).UTC(), "")
 			Expect(err).ToNot(HaveOccurred())
-			spyDrain.expectReceived(
+			spySink.expectReceived(
 				"78 <14>1 1970-01-01T00:00:00+00:00 - some-namespace/pod// - - - some-log-message\n",
 			)
 
-			spyDrain.stop()
-			spyDrain = newSpyDrain(spyDrain.url())
+			spySink.stop()
+			spySink = newSpySink(spySink.url())
 
 			r2 := map[interface{}]interface{}{
 				"log": []byte("some-log-message-2"),
@@ -580,7 +580,7 @@ var _ = Describe("Out", func() {
 			err = out.Write(r2, time.Unix(0, 0).UTC(), "")
 			Expect(err).ToNot(HaveOccurred())
 
-			spyDrain.expectReceived(
+			spySink.expectReceived(
 				"80 <14>1 1970-01-01T00:00:00+00:00 - some-namespace/pod// - - - some-log-message-2\n",
 			)
 		})
@@ -588,11 +588,11 @@ var _ = Describe("Out", func() {
 	})
 
 	Context("Secure with TLS", func() {
-		It("eventually connects to a failing syslog drain", func() {
-			spyDrain := newTLSSpyDrain()
-			spyDrain.stop()
+		It("eventually connects to a failing syslog sink", func() {
+			spySink := newTLSSpySink()
+			spySink.stop()
 			s := &syslog.Sink{
-				Addr:      spyDrain.url(),
+				Addr:      spySink.url(),
 				Namespace: "some-namespace",
 				TLS: &syslog.TLS{
 					InsecureSkipVerify: true,
@@ -616,8 +616,8 @@ var _ = Describe("Out", func() {
 			}()
 
 			<-goOn
-			// bring the drain back to life
-			spyDrain = newTLSSpyDrain(spyDrain.url())
+			// bring the sink back to life
+			spySink = newTLSSpySink(spySink.url())
 
 			go func() {
 				defer GinkgoRecover()
@@ -625,16 +625,16 @@ var _ = Describe("Out", func() {
 				Expect(err).ToNot(HaveOccurred())
 			}()
 
-			spyDrain.expectReceived(
+			spySink.expectReceived(
 				"78 <14>1 1970-01-01T00:00:00+00:00 - some-namespace/pod// - - - some-log-message\n",
 			)
 		})
 
 		It("doesn't reconnect if connection already established", func() {
-			spyDrain := newTLSSpyDrain()
-			defer spyDrain.stop()
+			spySink := newTLSSpySink()
+			defer spySink.stop()
 			s := &syslog.Sink{
-				Addr:      spyDrain.url(),
+				Addr:      spySink.url(),
 				Namespace: "some-namespace",
 				TLS: &syslog.TLS{
 					InsecureSkipVerify: true,
@@ -656,7 +656,7 @@ var _ = Describe("Out", func() {
 				Expect(err).ToNot(HaveOccurred())
 			}()
 
-			spyDrain.expectReceived(
+			spySink.expectReceived(
 				"78 <14>1 1970-01-01T00:00:00+00:00 - some-namespace/pod// - - - some-log-message\n",
 			)
 
@@ -672,15 +672,15 @@ var _ = Describe("Out", func() {
 			go func() {
 				defer GinkgoRecover()
 				defer close(done)
-				_, _ = spyDrain.lis.Accept()
+				_, _ = spySink.lis.Accept()
 			}()
 			Consistently(done).ShouldNot(BeClosed())
 		})
 
 		It("reconnects if previous connection went away", func() {
-			spyDrain := newTLSSpyDrain()
+			spySink := newTLSSpySink()
 			s := syslog.Sink{
-				Addr:      spyDrain.url(),
+				Addr:      spySink.url(),
 				Namespace: "some-namespace",
 				TLS: &syslog.TLS{
 					InsecureSkipVerify: true,
@@ -702,12 +702,12 @@ var _ = Describe("Out", func() {
 				err := out.Write(r1, time.Unix(0, 0).UTC(), "")
 				Expect(err).ToNot(HaveOccurred())
 			}()
-			spyDrain.expectReceived(
+			spySink.expectReceived(
 				"78 <14>1 1970-01-01T00:00:00+00:00 - some-namespace/pod// - - - some-log-message\n",
 			)
 
-			spyDrain.stop()
-			spyDrain = newTLSSpyDrain(spyDrain.url())
+			spySink.stop()
+			spySink = newTLSSpySink(spySink.url())
 
 			r2 := map[interface{}]interface{}{
 				"log": []byte("some-log-message-2"),
@@ -727,17 +727,17 @@ var _ = Describe("Out", func() {
 				Expect(err).ToNot(HaveOccurred())
 			}()
 
-			spyDrain.expectReceived(
+			spySink.expectReceived(
 				"80 <14>1 1970-01-01T00:00:00+00:00 - some-namespace/pod// - - - some-log-message-2\n",
 			)
 		})
 
 		It("writes messages via syslog-tls", func() {
-			spyDrain := newTLSSpyDrain()
-			defer spyDrain.stop()
+			spySink := newTLSSpySink()
+			defer spySink.stop()
 
 			s := &syslog.Sink{
-				Addr:      spyDrain.url(),
+				Addr:      spySink.url(),
 				Namespace: "some-ns",
 				TLS: &syslog.TLS{
 					InsecureSkipVerify: true,
@@ -761,17 +761,17 @@ var _ = Describe("Out", func() {
 				Expect(err).ToNot(HaveOccurred())
 			}()
 
-			spyDrain.expectReceivedOnly(
+			spySink.expectReceivedOnly(
 				"63 <14>1 1970-01-01T00:00:00+00:00 - some-ns/pod// - - - some-log\n",
 			)
 		})
 
 		It("fails when connecting to non TLS endpoint", func() {
-			spyDrain := newSpyDrain()
-			defer spyDrain.stop()
+			spySink := newSpySink()
+			defer spySink.stop()
 
 			s := &syslog.Sink{
-				Addr:      spyDrain.url(),
+				Addr:      spySink.url(),
 				Namespace: "some-ns",
 				TLS: &syslog.TLS{
 					InsecureSkipVerify: true,
