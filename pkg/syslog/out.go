@@ -31,7 +31,7 @@ type Out struct {
 	sinks map[string][]*Sink
 }
 
-// NewOut returns a new Out which handles both tcp and tls connections
+// NewOut returns a new Out which handles both tcp and tls connections.
 func NewOut(sinks []*Sink) *Out {
 	m := make(map[string][]*Sink)
 	for _, s := range sinks {
@@ -50,10 +50,10 @@ func NewOut(sinks []*Sink) *Out {
 
 }
 
-// Write takes a record, timestamp, and tag and converts it into a syslog
+// Write takes a record, timestamp, and tag, converts it into a syslog
 // message and filters it to the connection with the matching namespace.
-// If there are no connections configured for a record's namespace, it drops the
-// message.
+// If there are no connections configured for a record's namespace, it drops
+// the message.
 // If no connection is established one will be established per sink upon a
 // Write operation.
 // If all sinks for a namespace fail to write, Write will return an error.
@@ -82,6 +82,8 @@ func (o *Out) Write(
 	return nil
 }
 
+// Write writes a rfc5424 syslog message to the connection of the specified
+// sink. It recreates the connection if one isn't established yet.
 func (s *Sink) Write(m *rfc5424.Message) error {
 	err := s.maintainConnection()
 	if err != nil {
