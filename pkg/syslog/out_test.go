@@ -6,6 +6,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+
 	"github.com/pivotal-cf/fluent-bit-out-syslog/pkg/syslog"
 )
 
@@ -200,7 +201,7 @@ var _ = Describe("Out", func() {
 			Namespace: "ns1",
 			TLS: &syslog.TLS{
 				InsecureSkipVerify: true,
-				Timeout:            time.Second,
+				Timeout:            syslog.Duration{Duration: time.Second},
 			},
 		}
 		out := syslog.NewOut([]*syslog.Sink{s1, s2})
@@ -597,7 +598,7 @@ var _ = Describe("Out", func() {
 				Namespace: "some-namespace",
 				TLS: &syslog.TLS{
 					InsecureSkipVerify: true,
-					Timeout:            time.Second,
+					Timeout:            syslog.Duration{Duration: time.Second},
 				},
 			}
 			out := syslog.NewOut([]*syslog.Sink{s})
@@ -639,7 +640,7 @@ var _ = Describe("Out", func() {
 				Namespace: "some-namespace",
 				TLS: &syslog.TLS{
 					InsecureSkipVerify: true,
-					Timeout:            time.Second,
+					Timeout:            syslog.Duration{Duration: time.Second},
 				},
 			}
 			out := syslog.NewOut([]*syslog.Sink{s})
@@ -685,7 +686,7 @@ var _ = Describe("Out", func() {
 				Namespace: "some-namespace",
 				TLS: &syslog.TLS{
 					InsecureSkipVerify: true,
-					Timeout:            time.Second,
+					Timeout:            syslog.Duration{Duration: time.Second},
 				},
 			}
 			out := syslog.NewOut([]*syslog.Sink{&s})
@@ -742,7 +743,7 @@ var _ = Describe("Out", func() {
 				Namespace: "some-ns",
 				TLS: &syslog.TLS{
 					InsecureSkipVerify: true,
-					Timeout:            time.Second,
+					Timeout:            syslog.Duration{Duration: time.Second},
 				},
 			}
 
@@ -776,7 +777,7 @@ var _ = Describe("Out", func() {
 				Namespace: "some-ns",
 				TLS: &syslog.TLS{
 					InsecureSkipVerify: true,
-					Timeout:            time.Millisecond,
+					Timeout:            syslog.Duration{Duration: time.Millisecond},
 				},
 			}
 

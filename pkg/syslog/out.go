@@ -3,6 +3,8 @@ package syslog
 import (
 	"bytes"
 	"crypto/tls"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -23,8 +25,37 @@ type Sink struct {
 }
 
 type TLS struct {
-	InsecureSkipVerify bool          `json:"insecure_skip_verify"`
-	Timeout            time.Duration `json:"timeout"`
+	InsecureSkipVerify bool     `json:"insecure_skip_verify"`
+	Timeout            Duration `json:"timeout"`
+}
+
+type Duration struct {
+	time.Duration
+}
+
+func (d Duration) MarshalJSON() ([]byte, error) {
+	return json.Marshal(d.String())
+}
+
+func (d *Duration) UnmarshalJSON(b []byte) error {
+	var v interface{}
+	if err := json.Unmarshal(b, &v); err != nil {
+		return err
+	}
+	switch value := v.(type) {
+	case float64:
+		d.Duration = time.Duration(value)
+		return nil
+	case string:
+		var err error
+		d.Duration, err = time.ParseDuration(value)
+		if err != nil {
+			return err
+		}
+		return nil
+	default:
+		return errors.New("invalid duration")
+	}
 }
 
 // Out writes fluentbit messages via syslog TCP (RFC 5424 and RFC 6587).
@@ -102,7 +133,7 @@ func tlsMaintainConn(s *Sink) func() error {
 	return func() error {
 		if s.conn == nil {
 			dialer := net.Dialer{
-				Timeout: s.TLS.Timeout,
+				Timeout: time.Duration(s.TLS.Timeout.Duration),
 			}
 			var conn net.Conn // conn needs to be of type net.Conn, not *tls.Conn
 			conn, err := tls.DialWithDialer(
