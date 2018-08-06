@@ -185,6 +185,87 @@ var _ = Describe("Out", func() {
 		)
 	})
 
+	It("filters messages to multiple sinks for a namespace", func() {
+		spySink1 := newSpySink()
+		defer spySink1.stop()
+		spySink2 := newTLSSpySink()
+		defer spySink2.stop()
+
+		s1 := &syslog.Sink{
+			Addr:      spySink1.url(),
+			Namespace: "ns1",
+		}
+		s2 := &syslog.Sink{
+			Addr:      spySink2.url(),
+			Namespace: "ns1",
+			TLS: &syslog.TLS{
+				InsecureSkipVerify: true,
+				Timeout:            time.Second,
+			},
+		}
+		out := syslog.NewOut([]*syslog.Sink{s1, s2})
+
+		r1 := map[interface{}]interface{}{
+			"log": []byte("some-log-for-ns1"),
+			"kubernetes": map[interface{}]interface{}{
+				"namespace_name": []byte("ns1"),
+			},
+		}
+		go func() {
+			defer GinkgoRecover()
+			err := out.Write(r1, time.Unix(0, 0).UTC(), "")
+			Expect(err).ToNot(HaveOccurred())
+		}()
+
+		spySink1.expectReceived(
+			"67 <14>1 1970-01-01T00:00:00+00:00 - ns1/pod// - - - some-log-for-ns1\n",
+		)
+		spySink2.expectReceived(
+			"67 <14>1 1970-01-01T00:00:00+00:00 - ns1/pod// - - - some-log-for-ns1\n",
+		)
+	})
+
+	It("filters messages to multiple namespaces", func() {
+		spySink1 := newSpySink()
+		defer spySink1.stop()
+		spySink2 := newSpySink()
+		defer spySink2.stop()
+
+		s1 := &syslog.Sink{
+			Addr:      spySink1.url(),
+			Namespace: "ns1",
+		}
+		s2 := &syslog.Sink{
+			Addr:      spySink2.url(),
+			Namespace: "ns2",
+		}
+		out := syslog.NewOut([]*syslog.Sink{s1, s2})
+
+		r1 := map[interface{}]interface{}{
+			"log": []byte("some-log-for-ns1"),
+			"kubernetes": map[interface{}]interface{}{
+				"namespace_name": []byte("ns1"),
+			},
+		}
+		r2 := map[interface{}]interface{}{
+			"log": []byte("some-log-for-ns2"),
+			"kubernetes": map[interface{}]interface{}{
+				"namespace_name": []byte("ns2"),
+			},
+		}
+		err := out.Write(r1, time.Unix(0, 0).UTC(), "")
+		Expect(err).ToNot(HaveOccurred())
+		err = out.Write(r2, time.Unix(0, 0).UTC(), "")
+		Expect(err).ToNot(HaveOccurred())
+
+		spySink1.expectReceived(
+			"67 <14>1 1970-01-01T00:00:00+00:00 - ns1/pod// - - - some-log-for-ns1\n",
+		)
+		spySink2.expectReceived(
+			"67 <14>1 1970-01-01T00:00:00+00:00 - ns2/pod// - - - some-log-for-ns2\n",
+		)
+	})
+
 	DescribeTable(
 		"sends no data when record excludes pertinent info",
 		func(record map[interface{}]interface{}, message string) {
@@ -404,81 +485,8 @@ var _ = Describe("Out", func() {
 			"85 <14>1 1970-01-01T00:00:00+00:00 some-host some-ns/pod//some-container - - - some-log\n",
 		),
 	)
+
 	Context("TCP", func() {
-		It("filters messages to multiple sinks for a namespace", func() {
-			spySink1 := newSpySink()
-			defer spySink1.stop()
-			spySink2 := newSpySink()
-			defer spySink2.stop()
-
-			s1 := &syslog.Sink{
-				Addr:      spySink1.url(),
-				Namespace: "ns1",
-			}
-			s2 := &syslog.Sink{
-				Addr:      spySink2.url(),
-				Namespace: "ns1",
-			}
-			out := syslog.NewOut([]*syslog.Sink{s1, s2})
-
-			r1 := map[interface{}]interface{}{
-				"log": []byte("some-log-for-ns1"),
-				"kubernetes": map[interface{}]interface{}{
-					"namespace_name": []byte("ns1"),
-				},
-			}
-			err := out.Write(r1, time.Unix(0, 0).UTC(), "")
-			Expect(err).ToNot(HaveOccurred())
-
-			spySink1.expectReceived(
-				"67 <14>1 1970-01-01T00:00:00+00:00 - ns1/pod// - - - some-log-for-ns1\n",
-			)
-			spySink2.expectReceived(
-				"67 <14>1 1970-01-01T00:00:00+00:00 - ns1/pod// - - - some-log-for-ns1\n",
-			)
-		})
-
-		It("filters messages to multiple namespaces", func() {
-			spySink1 := newSpySink()
-			defer spySink1.stop()
-			spySink2 := newSpySink()
-			defer spySink2.stop()
-
-			s1 := &syslog.Sink{
-				Addr:      spySink1.url(),
-				Namespace: "ns1",
-			}
-			s2 := &syslog.Sink{
-				Addr:      spySink2.url(),
-				Namespace: "ns2",
-			}
-			out := syslog.NewOut([]*syslog.Sink{s1, s2})
-
-			r1 := map[interface{}]interface{}{
-				"log": []byte("some-log-for-ns1"),
-				"kubernetes": map[interface{}]interface{}{
-					"namespace_name": []byte("ns1"),
-				},
-			}
-			r2 := map[interface{}]interface{}{
-				"log": []byte("some-log-for-ns2"),
-				"kubernetes": map[interface{}]interface{}{
-					"namespace_name": []byte("ns2"),
-				},
-			}
-			err := out.Write(r1, time.Unix(0, 0).UTC(), "")
-			Expect(err).ToNot(HaveOccurred())
-			err = out.Write(r2, time.Unix(0, 0).UTC(), "")
-			Expect(err).ToNot(HaveOccurred())
-
-			spySink1.expectReceived(
-				"67 <14>1 1970-01-01T00:00:00+00:00 - ns1/pod// - - - some-log-for-ns1\n",
-			)
-			spySink2.expectReceived(
-				"67 <14>1 1970-01-01T00:00:00+00:00 - ns2/pod// - - - some-log-for-ns2\n",
-			)
-		})
-
 		It("eventually connects to a failing syslog sink", func() {
 			spySink := newSpySink()
 			spySink.stop()
@@ -587,7 +595,7 @@ var _ = Describe("Out", func() {
 
 	})
 
-	Context("Secure with TLS", func() {
+	Context("TLS", func() {
 		It("eventually connects to a failing syslog sink", func() {
 			spySink := newTLSSpySink()
 			spySink.stop()

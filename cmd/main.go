@@ -2,15 +2,13 @@ package main
 
 import (
 	"C"
+	"encoding/json"
 	"unsafe"
 
 	"log"
 
 	"github.com/fluent/fluent-bit-go/output"
 	"github.com/pivotal-cf/fluent-bit-out-syslog/pkg/syslog"
-)
-import (
-	"encoding/json"
 )
 
 var out *syslog.Out
@@ -73,6 +71,7 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 
 //export FLBPluginExit
 func FLBPluginExit() int {
+	// TODO: We should probably call conn.Close() for each sink connection
 	return output.FLB_OK
 }
 

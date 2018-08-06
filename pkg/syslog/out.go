@@ -13,17 +13,18 @@ import (
 // TODO: Address issues where messages are malformed but we are not notifying
 // the user.
 
+type Sink struct {
+	Addr      string `json:"addr"`
+	Namespace string `json:"namespace"`
+	TLS       *TLS   `json:"tls"`
+
+	conn               net.Conn
+	maintainConnection func() error
+}
+
 type TLS struct {
 	InsecureSkipVerify bool          `json:"insecure_skip_verify"`
 	Timeout            time.Duration `json:"timeout"`
-}
-
-type Sink struct {
-	Addr               string       `json:"addr"`
-	Namespace          string       `json:"namespace"`
-	TLS                *TLS         `json:"tls"`
-	conn               net.Conn     `json:"conn"`
-	maintainConnection func() error `json:"maintain_connection"`
 }
 
 // Out writes fluentbit messages via syslog TCP (RFC 5424 and RFC 6587).
@@ -50,41 +51,41 @@ func NewOut(sinks []*Sink) *Out {
 
 }
 
-// Write takes a record, timestamp, and tag, converts it into a syslog
-// message and filters it to the connection with the matching namespace.
-// If there are no connections configured for a record's namespace, it drops
-// the message.
+// Write takes a record, timestamp, and tag, converts it into a syslog message
+// and routes it to the connection with the matching namespace. If there are
+// no connections configured for a record's namespace, it drops the message.
 // If no connection is established one will be established per sink upon a
-// Write operation.
-// If all sinks for a namespace fail to write, Write will return an error.
+// Write operation. If all sinks for a namespace fail to write, Write will
+// return an error.
 func (o *Out) Write(
 	record map[interface{}]interface{},
 	ts time.Time,
 	tag string,
 ) error {
-
 	msg, namespace := convert(record, ts, tag)
 
 	namespaceSinks, ok := o.sinks[namespace]
 	if !ok {
+		// TODO: track ignored messages
 		return nil
 	}
 
-	errCount := 0
+	var errCount int
 	for _, s := range namespaceSinks {
-		if s.Write(msg) != nil {
+		if s.write(msg) != nil {
 			errCount++
 		}
 	}
+
 	if errCount == len(namespaceSinks) {
 		return fmt.Errorf("failed to write to all sinks for namespace: %s", namespace)
 	}
 	return nil
 }
 
-// Write writes a rfc5424 syslog message to the connection of the specified
+// write writes a rfc5424 syslog message to the connection of the specified
 // sink. It recreates the connection if one isn't established yet.
-func (s *Sink) Write(m *rfc5424.Message) error {
+func (s *Sink) write(m *rfc5424.Message) error {
 	err := s.maintainConnection()
 	if err != nil {
 		return err

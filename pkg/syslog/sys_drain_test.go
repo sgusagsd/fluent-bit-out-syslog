@@ -21,14 +21,14 @@ func newTLSSpySink(addr ...string) *spySink {
 	}
 
 	cert, err := tls.X509KeyPair(tlsCert, tlsKey)
-	Expect(err).ToNot(HaveOccurred())
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
 	config := &tls.Config{
 		Certificates: []tls.Certificate{cert},
 	}
 
 	lis, err := tls.Listen("tcp", a, config)
-	Expect(err).ToNot(HaveOccurred())
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
 	return &spySink{
 		lis: lis,
@@ -41,7 +41,7 @@ func newSpySink(addr ...string) *spySink {
 		a = addr[0]
 	}
 	lis, err := net.Listen("tcp", a)
-	Expect(err).ToNot(HaveOccurred())
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
 	return &spySink{
 		lis: lis,
@@ -58,7 +58,7 @@ func (s *spySink) stop() {
 
 func (s *spySink) accept() net.Conn {
 	conn, err := s.lis.Accept()
-	Expect(err).ToNot(HaveOccurred())
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 	return conn
 }
 
@@ -71,8 +71,8 @@ func (s *spySink) expectReceived(msgs ...string) {
 
 	for _, expected := range msgs {
 		actual, err := buf.ReadString('\n')
-		Expect(err).ToNot(HaveOccurred())
-		Expect(actual).To(Equal(expected))
+		ExpectWithOffset(1, err).ToNot(HaveOccurred())
+		ExpectWithOffset(1, actual).To(Equal(expected))
 	}
 }
 
@@ -85,8 +85,8 @@ func (s *spySink) expectReceivedOnly(msgs ...string) {
 
 	for _, expected := range msgs {
 		actual, err := buf.ReadString('\n')
-		Expect(err).ToNot(HaveOccurred())
-		Expect(actual).To(Equal(expected))
+		ExpectWithOffset(1, err).ToNot(HaveOccurred())
+		ExpectWithOffset(1, actual).To(Equal(expected))
 	}
 
 	read := make(chan struct{})
@@ -96,7 +96,7 @@ func (s *spySink) expectReceivedOnly(msgs ...string) {
 	}()
 	select {
 	case <-read:
-		Fail("unexpected read occurred")
+		Fail("unexpected read occurred", 1)
 	case <-time.After(300 * time.Millisecond):
 	}
 }
