@@ -48,7 +48,6 @@ func NewOut(sinks []*Sink) *Out {
 	return &Out{
 		sinks: m,
 	}
-
 }
 
 // Write takes a record, timestamp, and tag, converts it into a syslog message

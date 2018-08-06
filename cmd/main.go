@@ -31,6 +31,7 @@ func FLBPluginInit(ctx unsafe.Pointer) int {
 
 	err := json.Unmarshal([]byte(s), &sinks)
 	if err != nil {
+		log.Println("[out_syslog] unable to unmarshal: %s", err)
 		return output.FLB_ERROR
 	}
 	out = syslog.NewOut(sinks)
