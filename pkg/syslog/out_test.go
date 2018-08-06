@@ -281,16 +281,9 @@ var _ = Describe("Out", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			done := make(chan struct{})
-			cleanup := make(chan struct{})
-			defer close(cleanup)
 			go func() {
-				select {
-				case <-cleanup:
-					return
-				default:
-					spySink.lis.Accept()
-					close(done)
-				}
+				_, _ = spySink.lis.Accept()
+				close(done)
 			}()
 
 			Consistently(done).ShouldNot(BeClosed())
