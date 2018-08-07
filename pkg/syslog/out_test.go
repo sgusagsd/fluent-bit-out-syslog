@@ -201,7 +201,6 @@ var _ = Describe("Out", func() {
 			Namespace: "ns1",
 			TLS: &syslog.TLS{
 				InsecureSkipVerify: true,
-				Timeout:            syslog.Duration{Duration: time.Second},
 			},
 		}
 		out := syslog.NewOut([]*syslog.Sink{s1, s2})
@@ -598,7 +597,6 @@ var _ = Describe("Out", func() {
 				Namespace: "some-namespace",
 				TLS: &syslog.TLS{
 					InsecureSkipVerify: true,
-					Timeout:            syslog.Duration{Duration: time.Second},
 				},
 			}
 			out := syslog.NewOut([]*syslog.Sink{s})
@@ -640,7 +638,6 @@ var _ = Describe("Out", func() {
 				Namespace: "some-namespace",
 				TLS: &syslog.TLS{
 					InsecureSkipVerify: true,
-					Timeout:            syslog.Duration{Duration: time.Second},
 				},
 			}
 			out := syslog.NewOut([]*syslog.Sink{s})
@@ -686,7 +683,6 @@ var _ = Describe("Out", func() {
 				Namespace: "some-namespace",
 				TLS: &syslog.TLS{
 					InsecureSkipVerify: true,
-					Timeout:            syslog.Duration{Duration: time.Second},
 				},
 			}
 			out := syslog.NewOut([]*syslog.Sink{&s})
@@ -743,7 +739,6 @@ var _ = Describe("Out", func() {
 				Namespace: "some-ns",
 				TLS: &syslog.TLS{
 					InsecureSkipVerify: true,
-					Timeout:            syslog.Duration{Duration: time.Second},
 				},
 			}
 
@@ -777,11 +772,13 @@ var _ = Describe("Out", func() {
 				Namespace: "some-ns",
 				TLS: &syslog.TLS{
 					InsecureSkipVerify: true,
-					Timeout:            syslog.Duration{Duration: time.Millisecond},
 				},
 			}
 
-			out := syslog.NewOut([]*syslog.Sink{s})
+			out := syslog.NewOut(
+				[]*syslog.Sink{s},
+				syslog.WithDialTimeout(time.Millisecond),
+			)
 			r := map[interface{}]interface{}{
 				"log": []byte("some-log"),
 				"kubernetes": map[interface{}]interface{}{

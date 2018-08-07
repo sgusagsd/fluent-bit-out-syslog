@@ -3,8 +3,6 @@ package syslog
 import (
 	"bytes"
 	"crypto/tls"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -25,60 +23,46 @@ type Sink struct {
 }
 
 type TLS struct {
-	InsecureSkipVerify bool     `json:"insecure_skip_verify"`
-	Timeout            Duration `json:"timeout"`
-}
-
-type Duration struct {
-	time.Duration
-}
-
-func (d Duration) MarshalJSON() ([]byte, error) {
-	return json.Marshal(d.String())
-}
-
-func (d *Duration) UnmarshalJSON(b []byte) error {
-	var v interface{}
-	if err := json.Unmarshal(b, &v); err != nil {
-		return err
-	}
-	switch value := v.(type) {
-	case float64:
-		d.Duration = time.Duration(value)
-		return nil
-	case string:
-		var err error
-		d.Duration, err = time.ParseDuration(value)
-		if err != nil {
-			return err
-		}
-		return nil
-	default:
-		return errors.New("invalid duration")
-	}
+	InsecureSkipVerify bool `json:"insecure_skip_verify"`
 }
 
 // Out writes fluentbit messages via syslog TCP (RFC 5424 and RFC 6587).
 type Out struct {
-	sinks map[string][]*Sink
+	sinks       map[string][]*Sink
+	dialTimeout time.Duration
+}
+
+type OutOption func(*Out)
+
+func WithDialTimeout(d time.Duration) OutOption {
+	return func(o *Out) {
+		o.dialTimeout = d
+	}
 }
 
 // NewOut returns a new Out which handles both tcp and tls connections.
-func NewOut(sinks []*Sink) *Out {
+func NewOut(sinks []*Sink, opts ...OutOption) *Out {
+	out := &Out{
+		dialTimeout: 5 * time.Second,
+	}
+
 	m := make(map[string][]*Sink)
 	for _, s := range sinks {
 		if s.TLS != nil {
-			s.maintainConnection = tlsMaintainConn(s)
+			s.maintainConnection = tlsMaintainConn(s, out)
 		} else {
-			s.maintainConnection = tcpMaintainConn(s)
+			s.maintainConnection = tcpMaintainConn(s, out)
 		}
 
 		m[s.Namespace] = append(m[s.Namespace], s)
 	}
+	out.sinks = m
 
-	return &Out{
-		sinks: m,
+	for _, o := range opts {
+		o(out)
 	}
+
+	return out
 }
 
 // Write takes a record, timestamp, and tag, converts it into a syslog message
@@ -129,11 +113,11 @@ func (s *Sink) write(m *rfc5424.Message) error {
 	return nil
 }
 
-func tlsMaintainConn(s *Sink) func() error {
+func tlsMaintainConn(s *Sink, out *Out) func() error {
 	return func() error {
 		if s.conn == nil {
 			dialer := net.Dialer{
-				Timeout: time.Duration(s.TLS.Timeout.Duration),
+				Timeout: out.dialTimeout,
 			}
 			var conn net.Conn // conn needs to be of type net.Conn, not *tls.Conn
 			conn, err := tls.DialWithDialer(
@@ -153,10 +137,13 @@ func tlsMaintainConn(s *Sink) func() error {
 	}
 }
 
-func tcpMaintainConn(s *Sink) func() error {
+func tcpMaintainConn(s *Sink, out *Out) func() error {
 	return func() error {
+		dialer := net.Dialer{
+			Timeout: out.dialTimeout,
+		}
 		if s.conn == nil {
-			conn, err := net.Dial("tcp", s.Addr)
+			conn, err := dialer.Dial("tcp", s.Addr)
 			s.conn = conn
 			return err
 		}
