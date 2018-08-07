@@ -57,9 +57,26 @@ func (s *spyDrain) stop() {
 }
 
 func (s *spyDrain) accept() net.Conn {
-	conn, err := s.lis.Accept()
-	Expect(err).ToNot(HaveOccurred())
-	return conn
+	t := time.NewTimer(time.Second)
+	defer t.Stop()
+
+	c := make(chan net.Conn)
+
+	go func() {
+		defer GinkgoRecover()
+		conn, err := s.lis.Accept()
+		Expect(err).ToNot(HaveOccurred())
+		c <- conn
+	}()
+
+	select {
+	case <-t.C:
+		Fail("spy drain timed out accepting connection")
+	case conn := <-c:
+		return conn
+	}
+
+	return nil
 }
 
 func (s *spyDrain) expectReceived(msgs ...string) {
