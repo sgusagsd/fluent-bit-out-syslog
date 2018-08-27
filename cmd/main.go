@@ -25,12 +25,16 @@ func FLBPluginRegister(ctx unsafe.Pointer) int {
 //export FLBPluginInit
 func FLBPluginInit(ctx unsafe.Pointer) int {
 	s := output.FLBPluginConfigKey(ctx, "sinks")
-	log.Println("[out_syslog] sinks = ", s)
+	if s == "" {
+		log.Println("[out_syslog] ERROR: sinks can't be empty")
+		return output.FLB_ERROR
+	}
 
+	log.Println("[out_syslog] sinks = ", s)
 	var sinks []*syslog.Sink
 
 	err := json.Unmarshal([]byte(s), &sinks)
-	if err != nil {
+	if err != nil || len(sinks) == 0 {
 		log.Printf("[out_syslog] unable to unmarshal: %s", err)
 		return output.FLB_ERROR
 	}
