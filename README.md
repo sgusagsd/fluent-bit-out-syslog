@@ -5,6 +5,9 @@ Table of Contents
       * [How To Run In Local laptop](#how-to-run-in-local-laptop)
       * [How To Run In minikube](#how-to-run-in-minikube)
       * [How To Run Linter](#how-to-run-linter)
+   * [Sample Config File](#sample-config-file)
+      * [Plain syslog output plugin](#plain-syslog-output-plugin)
+      * [Syslog output plugin with kubernetes namespace filter](#syslog-output-plugin-with-kubernetes-namespace-filter)
 
 # Fluent Bit Syslog Output Plugin
 
@@ -62,11 +65,37 @@ that the `EnableTLS` and `InsecureSkipVerify` configurations are optional and
 only needed if you are connecting to an endpoint that supports TLS. By
 default, both of those optional fields are false.
 
+# Sample Config File
+## Plain syslog output plugin
 ```
 [OUTPUT]
 	Name syslog
 	Match *
-	Addr logs.papertrailapp.com:18271
-	Enable_TLS  true
-	Insecure_Skip_Verify  true
+	Sinks [{"addr":"logs.papertrailapp.com:18271", "enable_tls":"true", "insecure_skip_verify":"true"}]
+```
+
+## Syslog output plugin with kubernetes namespace filter
+
+```
+[INPUT]
+    Name              tail
+    Tag               kube.*
+    Path              /var/log/containers/*.log
+    Parser            docker
+    DB                /var/log/flb_kube.db
+    Mem_Buf_Limit     5MB
+    Skip_Long_Lines   On
+    Refresh_Interval  10
+
+[FILTER]
+    Name                kubernetes
+    Match               kube.*
+    Kube_URL            https://kubernetes.default.svc.cluster.local:443
+    Merge_Log           On
+    K8S-Logging.Parser  On
+
+[OUTPUT]
+	Name syslog
+	Match *
+	Sinks [{"addr":"logs.papertrailapp.com:18271", "namespace":"myns", "enable_tls":"true", "insecure_skip_verify":"true"}]
 ```

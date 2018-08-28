@@ -54,8 +54,8 @@ function run_container {
 
 action=${1:-run_container}
 
+ensure_variable_isset "$GOPATH" "GOPATH env should be set"
 if  [ "$action" = "build_code" ]; then
-    ensure_variable_isset "$GOPATH" "GOPATH env should be set"
     build_code
     log "Keep container up and running, via \"tail -f /dev/null\""
     tail -f /dev/null
