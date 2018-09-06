@@ -95,7 +95,8 @@ default, both of those optional fields are false.
     K8S-Logging.Parser  On
 
 [OUTPUT]
-	Name syslog
-	Match *
-	Sinks [{"addr":"logs.papertrailapp.com:18271", "namespace":"myns", "enable_tls":"true", "insecure_skip_verify":"true"}]
+    Name syslog
+    Match *
+    Sinks [{"addr":"logs.papertrailapp.com:18271", "namespace":"myns", "enable_tls":"true", "insecure_skip_verify":"true"}]
+    ClusterSinks [{"addr":"logs.papertrailapp.com:18272", "enable_tls":"true", "insecure_skip_verify":"true"}]
 ```

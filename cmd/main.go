@@ -25,20 +25,40 @@ func FLBPluginRegister(ctx unsafe.Pointer) int {
 //export FLBPluginInit
 func FLBPluginInit(ctx unsafe.Pointer) int {
 	s := output.FLBPluginConfigKey(ctx, "sinks")
-	if s == "" {
+	cs := output.FLBPluginConfigKey(ctx, "clustersinks")
+	if s == "" && cs == "" {
 		log.Println("[out_syslog] ERROR: sinks can't be empty")
 		return output.FLB_ERROR
 	}
 
-	log.Println("[out_syslog] sinks = ", s)
-	var sinks []*syslog.Sink
+	log.Println("[out_syslog] sinks =", s)
+	log.Println("[out_syslog] cluster sinks =", cs)
 
-	err := json.Unmarshal([]byte(s), &sinks)
-	if err != nil || len(sinks) == 0 {
-		log.Printf("[out_syslog] unable to unmarshal: %s", err)
+	var (
+		sinks        []*syslog.Sink
+		clusterSinks []*syslog.Sink
+	)
+
+	if len(s) != 0 {
+		err := json.Unmarshal([]byte(s), &sinks)
+		if err != nil {
+			log.Printf("[out_syslog] unable to unmarshal sinks: %s", err)
+			return output.FLB_ERROR
+		}
+	}
+	if len(cs) != 0 {
+		err := json.Unmarshal([]byte(cs), &clusterSinks)
+		if err != nil {
+			log.Printf("[out_syslog] unable to unmarshal cluster sinks: %s", err)
+			return output.FLB_ERROR
+		}
+	}
+
+	if len(sinks)+len(clusterSinks) == 0 {
+		log.Println("[out_syslog] require at least one sink or cluster sink")
 		return output.FLB_ERROR
 	}
-	out = syslog.NewOut(sinks)
+	out = syslog.NewOut(sinks, clusterSinks)
 	return output.FLB_OK
 }
 

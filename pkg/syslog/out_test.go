@@ -25,7 +25,7 @@ var _ = Describe("Out", func() {
 			Addr:      spySink2.url(),
 			Namespace: "ns1",
 		}
-		out := syslog.NewOut([]*syslog.Sink{s1, s2})
+		out := syslog.NewOut([]*syslog.Sink{s1, s2}, nil)
 
 		r := map[interface{}]interface{}{
 			"log": []byte("some-log-for-ns1"),
@@ -41,7 +41,7 @@ var _ = Describe("Out", func() {
 		)
 	})
 
-	It("returns an error if all sinks for a namespace fail to write successfully", func() {
+	It("returns an error if all sinks fail to write successfully", func() {
 		spySink1 := newSpySink()
 		spySink1.stop()
 		spySink2 := newSpySink()
@@ -55,7 +55,7 @@ var _ = Describe("Out", func() {
 			Addr:      spySink2.url(),
 			Namespace: "ns1",
 		}
-		out := syslog.NewOut([]*syslog.Sink{s1, s2})
+		out := syslog.NewOut([]*syslog.Sink{s1}, []*syslog.Sink{s2})
 
 		r := map[interface{}]interface{}{
 			"log": []byte("some-log-for-ns1"),
@@ -75,7 +75,7 @@ var _ = Describe("Out", func() {
 			Addr:      spySink.url(),
 			Namespace: "kube-system",
 		}
-		out := syslog.NewOut([]*syslog.Sink{&s})
+		out := syslog.NewOut([]*syslog.Sink{&s}, nil)
 		record := map[interface{}]interface{}{
 			"log": []byte("some-log"),
 			"kubernetes": map[interface{}]interface{}{
@@ -102,7 +102,7 @@ var _ = Describe("Out", func() {
 			Addr:      spySink.url(),
 			Namespace: "test-namespace",
 		}
-		out := syslog.NewOut([]*syslog.Sink{&s})
+		out := syslog.NewOut([]*syslog.Sink{&s}, nil)
 		r1 := map[interface{}]interface{}{
 			"log": []byte("some-log"),
 			"kubernetes": map[interface{}]interface{}{
@@ -140,7 +140,7 @@ var _ = Describe("Out", func() {
 			Addr:      spySink.url(),
 			Namespace: "namespace-name-very-long",
 		}
-		out := syslog.NewOut([]*syslog.Sink{&s})
+		out := syslog.NewOut([]*syslog.Sink{&s}, nil)
 		record := map[interface{}]interface{}{
 			"log": []byte("some-log"),
 			"kubernetes": map[interface{}]interface{}{
@@ -167,7 +167,7 @@ var _ = Describe("Out", func() {
 			Addr:      spySink.url(),
 			Namespace: "namespace-name-very-long",
 		}
-		out := syslog.NewOut([]*syslog.Sink{&s})
+		out := syslog.NewOut([]*syslog.Sink{&s}, nil)
 		record := map[interface{}]interface{}{
 			"log": []byte("some-log\n"),
 			"kubernetes": map[interface{}]interface{}{
@@ -203,7 +203,7 @@ var _ = Describe("Out", func() {
 				InsecureSkipVerify: true,
 			},
 		}
-		out := syslog.NewOut([]*syslog.Sink{s1, s2})
+		out := syslog.NewOut([]*syslog.Sink{s1, s2}, nil)
 
 		r1 := map[interface{}]interface{}{
 			"log": []byte("some-log-for-ns1"),
@@ -239,7 +239,7 @@ var _ = Describe("Out", func() {
 			Addr:      spySink2.url(),
 			Namespace: "ns2",
 		}
-		out := syslog.NewOut([]*syslog.Sink{s1, s2})
+		out := syslog.NewOut([]*syslog.Sink{s1, s2}, nil)
 
 		r1 := map[interface{}]interface{}{
 			"log": []byte("some-log-for-ns1"),
@@ -266,6 +266,59 @@ var _ = Describe("Out", func() {
 		)
 	})
 
+	It("sends all messages to all cluster sinks", func() {
+		spySink1 := newSpySink()
+		defer spySink1.stop()
+		spyClusterSink1 := newSpySink()
+		defer spyClusterSink1.stop()
+		spyClusterSink2 := newSpySink()
+		defer spyClusterSink2.stop()
+
+		s1 := &syslog.Sink{
+			Addr:      spySink1.url(),
+			Namespace: "ns1",
+		}
+		cs1 := &syslog.Sink{
+			Addr: spyClusterSink1.url(),
+		}
+		cs2 := &syslog.Sink{
+			Addr: spyClusterSink2.url(),
+		}
+		out := syslog.NewOut(
+			[]*syslog.Sink{s1},
+			[]*syslog.Sink{cs1, cs2},
+		)
+
+		r1 := map[interface{}]interface{}{
+			"log": []byte("some-log-for-ns1"),
+			"kubernetes": map[interface{}]interface{}{
+				"namespace_name": []byte("ns1"),
+			},
+		}
+		r2 := map[interface{}]interface{}{
+			"log": []byte("some-log-for-ns2"),
+			"kubernetes": map[interface{}]interface{}{
+				"namespace_name": []byte("ns2"),
+			},
+		}
+		err := out.Write(r1, time.Unix(0, 0).UTC(), "")
+		Expect(err).ToNot(HaveOccurred())
+		err = out.Write(r2, time.Unix(0, 0).UTC(), "")
+		Expect(err).ToNot(HaveOccurred())
+
+		spySink1.expectReceivedOnly(
+			"67 <14>1 1970-01-01T00:00:00+00:00 - ns1/pod// - - - some-log-for-ns1\n",
+		)
+		spyClusterSink1.expectReceivedOnly(
+			"67 <14>1 1970-01-01T00:00:00+00:00 - ns1/pod// - - - some-log-for-ns1\n",
+			"67 <14>1 1970-01-01T00:00:00+00:00 - ns2/pod// - - - some-log-for-ns2\n",
+		)
+		spyClusterSink2.expectReceivedOnly(
+			"67 <14>1 1970-01-01T00:00:00+00:00 - ns1/pod// - - - some-log-for-ns1\n",
+			"67 <14>1 1970-01-01T00:00:00+00:00 - ns2/pod// - - - some-log-for-ns2\n",
+		)
+	})
+
 	DescribeTable(
 		"sends no data when record excludes pertinent info",
 		func(record map[interface{}]interface{}, message string) {
@@ -275,7 +328,7 @@ var _ = Describe("Out", func() {
 				Addr:      spySink.url(),
 				Namespace: "some-ns",
 			}
-			out := syslog.NewOut([]*syslog.Sink{&s})
+			out := syslog.NewOut([]*syslog.Sink{&s}, nil)
 
 			err := out.Write(record, time.Unix(0, 0).UTC(), "")
 			Expect(err).ToNot(HaveOccurred())
@@ -344,7 +397,7 @@ var _ = Describe("Out", func() {
 				Addr:      spySink.url(),
 				Namespace: "some-ns",
 			}
-			out := syslog.NewOut([]*syslog.Sink{&s})
+			out := syslog.NewOut([]*syslog.Sink{&s}, nil)
 
 			err := out.Write(record, time.Unix(0, 0).UTC(), "")
 			Expect(err).ToNot(HaveOccurred())
@@ -487,7 +540,7 @@ var _ = Describe("Out", func() {
 				Addr:      spySink.url(),
 				Namespace: "some-namespace",
 			}
-			out := syslog.NewOut([]*syslog.Sink{&s})
+			out := syslog.NewOut([]*syslog.Sink{&s}, nil)
 			record := map[interface{}]interface{}{
 				"log": []byte("some-log-message"),
 				"kubernetes": map[interface{}]interface{}{
@@ -516,7 +569,7 @@ var _ = Describe("Out", func() {
 				Addr:      spySink.url(),
 				Namespace: "some-namespace",
 			}
-			out := syslog.NewOut([]*syslog.Sink{&s})
+			out := syslog.NewOut([]*syslog.Sink{&s}, nil)
 
 			record := map[interface{}]interface{}{
 				"log": []byte("some-log-message"),
@@ -549,7 +602,7 @@ var _ = Describe("Out", func() {
 				Addr:      spySink.url(),
 				Namespace: "some-namespace",
 			}
-			out := syslog.NewOut([]*syslog.Sink{&s})
+			out := syslog.NewOut([]*syslog.Sink{&s}, nil)
 			r1 := map[interface{}]interface{}{
 				"log": []byte("some-log-message"),
 				"kubernetes": map[interface{}]interface{}{
@@ -599,7 +652,7 @@ var _ = Describe("Out", func() {
 					InsecureSkipVerify: true,
 				},
 			}
-			out := syslog.NewOut([]*syslog.Sink{s})
+			out := syslog.NewOut([]*syslog.Sink{s}, nil)
 			record := map[interface{}]interface{}{
 				"log": []byte("some-log-message"),
 				"kubernetes": map[interface{}]interface{}{
@@ -640,7 +693,7 @@ var _ = Describe("Out", func() {
 					InsecureSkipVerify: true,
 				},
 			}
-			out := syslog.NewOut([]*syslog.Sink{s})
+			out := syslog.NewOut([]*syslog.Sink{s}, nil)
 
 			record := map[interface{}]interface{}{
 				"log": []byte("some-log-message"),
@@ -685,7 +738,7 @@ var _ = Describe("Out", func() {
 					InsecureSkipVerify: true,
 				},
 			}
-			out := syslog.NewOut([]*syslog.Sink{&s})
+			out := syslog.NewOut([]*syslog.Sink{&s}, nil)
 			r1 := map[interface{}]interface{}{
 				"log": []byte("some-log-message"),
 				"kubernetes": map[interface{}]interface{}{
@@ -742,7 +795,7 @@ var _ = Describe("Out", func() {
 				},
 			}
 
-			out := syslog.NewOut([]*syslog.Sink{s})
+			out := syslog.NewOut([]*syslog.Sink{s}, nil)
 			r := map[interface{}]interface{}{
 				"log": []byte("some-log"),
 				"kubernetes": map[interface{}]interface{}{
@@ -777,6 +830,7 @@ var _ = Describe("Out", func() {
 
 			out := syslog.NewOut(
 				[]*syslog.Sink{s},
+				nil,
 				syslog.WithDialTimeout(time.Millisecond),
 			)
 			r := map[interface{}]interface{}{

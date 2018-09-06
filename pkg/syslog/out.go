@@ -28,8 +28,9 @@ type TLS struct {
 
 // Out writes fluentbit messages via syslog TCP (RFC 5424 and RFC 6587).
 type Out struct {
-	sinks       map[string][]*Sink
-	dialTimeout time.Duration
+	sinks        map[string][]*Sink
+	clusterSinks []*Sink
+	dialTimeout  time.Duration
 }
 
 type OutOption func(*Out)
@@ -41,7 +42,7 @@ func WithDialTimeout(d time.Duration) OutOption {
 }
 
 // NewOut returns a new Out which handles both tcp and tls connections.
-func NewOut(sinks []*Sink, opts ...OutOption) *Out {
+func NewOut(sinks, clusterSinks []*Sink, opts ...OutOption) *Out {
 	out := &Out{
 		dialTimeout: 5 * time.Second,
 	}
@@ -56,7 +57,15 @@ func NewOut(sinks []*Sink, opts ...OutOption) *Out {
 
 		m[s.Namespace] = append(m[s.Namespace], s)
 	}
+	for _, s := range clusterSinks {
+		if s.TLS != nil {
+			s.maintainConnection = tlsMaintainConn(s, out)
+		} else {
+			s.maintainConnection = tcpMaintainConn(s, out)
+		}
+	}
 	out.sinks = m
+	out.clusterSinks = clusterSinks
 
 	for _, o := range opts {
 		o(out)
@@ -70,7 +79,8 @@ func NewOut(sinks []*Sink, opts ...OutOption) *Out {
 // no connections configured for a record's namespace, it drops the message.
 // If no connection is established one will be established per sink upon a
 // Write operation. If all sinks for a namespace fail to write, Write will
-// return an error.
+// return an error. Write will also write all messages to all cluster sinks
+// provided.
 func (o *Out) Write(
 	record map[interface{}]interface{},
 	ts time.Time,
@@ -78,20 +88,26 @@ func (o *Out) Write(
 ) error {
 	msg, namespace := convert(record, ts, tag)
 
+	var errCount int
+	for _, cs := range o.clusterSinks {
+		if cs.write(msg) != nil {
+			errCount++
+		}
+	}
+
 	namespaceSinks, ok := o.sinks[namespace]
 	if !ok {
 		// TODO: track ignored messages
 		return nil
 	}
 
-	var errCount int
 	for _, s := range namespaceSinks {
 		if s.write(msg) != nil {
 			errCount++
 		}
 	}
 
-	if errCount == len(namespaceSinks) {
+	if errCount == len(namespaceSinks)+len(o.clusterSinks) {
 		return fmt.Errorf("failed to write to all sinks for namespace: %s", namespace)
 	}
 	return nil
