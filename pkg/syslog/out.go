@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"net"
 	"time"
 
@@ -84,9 +85,9 @@ func NewOut(sinks, clusterSinks []*Sink, opts ...OutOption) *Out {
 func (o *Out) Write(
 	record map[interface{}]interface{},
 	ts time.Time,
-	tag string,
+	_ string, // Tag is not used at this time.
 ) error {
-	msg, namespace := convert(record, ts, tag)
+	msg, namespace := convert(record, ts)
 
 	var errCount int
 	for _, cs := range o.clusterSinks {
@@ -115,13 +116,13 @@ func (o *Out) Write(
 
 // write writes a rfc5424 syslog message to the connection of the specified
 // sink. It recreates the connection if one isn't established yet.
-func (s *Sink) write(m *rfc5424.Message) error {
+func (s *Sink) write(w io.WriterTo) error {
 	err := s.maintainConnection()
 	if err != nil {
 		return err
 	}
 
-	_, err = m.WriteTo(s.conn)
+	_, err = w.WriteTo(s.conn)
 	if err != nil {
 		s.conn = nil
 		return err
@@ -170,7 +171,6 @@ func tcpMaintainConn(s *Sink, out *Out) func() error {
 func convert(
 	record map[interface{}]interface{},
 	ts time.Time,
-	tag string,
 ) (*rfc5424.Message, string) {
 	var (
 		logmsg []byte
