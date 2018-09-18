@@ -266,5 +266,24 @@ func convert(
 		Hostname:  host,
 		AppName:   appName,
 		Message:   logmsg,
+		StructuredData: []rfc5424.StructuredData{
+			{
+				ID: "kubernetes@47450",
+				Parameters: []rfc5424.SDParam{
+					{
+						Name:  "namespace_name",
+						Value: namespaceName,
+					},
+					{
+						Name:  "pod_name",
+						Value: podName,
+					},
+					{
+						Name:  "container_name",
+						Value: containerName,
+					},
+				},
+			},
+		},
 	}, namespaceName
 }
