@@ -1,3 +1,6 @@
 linters:
   disable:
   - gas
+linters-settings:
+  lll:
+    line-length: 300
