@@ -3,9 +3,9 @@ package main
 import (
 	"C"
 	"encoding/json"
-	"unsafe"
-
 	"log"
+	"time"
+	"unsafe"
 
 	"github.com/fluent/fluent-bit-go/output"
 	"github.com/pivotal-cf/fluent-bit-out-syslog/pkg/syslog"
@@ -77,11 +77,17 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 			break
 		}
 
-		flbTime, ok := ts.(output.FLBTime)
-		if !ok {
-			continue
+		var timestamp time.Time
+		switch tts := ts.(type) {
+		case output.FLBTime:
+			timestamp = tts.Time
+		case uint64:
+			// From our observation, when ts is of type uint64 it appears to
+			// be the amount of seconds since unix epoch.
+			timestamp = time.Unix(int64(tts), 0)
+		default:
+			timestamp = time.Now()
 		}
-		timestamp := flbTime.Time
 
 		err := out.Write(record, timestamp, C.GoString(tag))
 		if err != nil {
