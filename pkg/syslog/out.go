@@ -243,9 +243,8 @@ func convert(
 	if len(k8sMap) != 0 {
 		// sample: kube-system/pod/kube-dns-86f4d74b45-lfgj7/dnsmasq
 		appName = fmt.Sprintf(
-			"%s/%s/%s/%s",
+			"%s/%s/%s",
 			namespaceName,
-			"pod",
 			podName,
 			containerName,
 		)
@@ -275,7 +274,7 @@ func convert(
 						Value: namespaceName,
 					},
 					{
-						Name:  "pod_name",
+						Name:  "object_name",
 						Value: podName,
 					},
 					{

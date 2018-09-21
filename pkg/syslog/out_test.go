@@ -43,7 +43,7 @@ var _ = Describe("Out", func() {
 							Value: "kube-system",
 						},
 						{
-							Name:  "pod_name",
+							Name:  "object_name",
 							Value: "etcd-minikube",
 						},
 						{
@@ -82,7 +82,7 @@ var _ = Describe("Out", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		spySink2.expectReceived(
-			`<14>1 1970-01-01T00:00:00+00:00 - ns1/pod// - - [kubernetes@47450 namespace_name="ns1" pod_name="" container_name=""] some-log-for-ns1` + "\n",
+			`<14>1 1970-01-01T00:00:00+00:00 - ns1// - - [kubernetes@47450 namespace_name="ns1" object_name="" container_name=""] some-log-for-ns1` + "\n",
 		)
 	})
 
@@ -135,7 +135,7 @@ var _ = Describe("Out", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		spySink.expectReceived(
-			`<14>1 1970-01-01T00:00:00+00:00 some-host kube-system/pod/etcd-minikube/etcd - - [kubernetes@47450 namespace_name="kube-system" pod_name="etcd-minikube" container_name="etcd"] some-log` + "\n",
+			`<14>1 1970-01-01T00:00:00+00:00 some-host kube-system/etcd-minikube/etcd - - [kubernetes@47450 namespace_name="kube-system" object_name="etcd-minikube" container_name="etcd"] some-log` + "\n",
 		)
 	})
 
@@ -173,7 +173,7 @@ var _ = Describe("Out", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		spySink.expectReceivedOnly(
-			`<14>1 1970-01-01T00:00:00+00:00 some-host test-namespace/pod/etcd-minikube/etcd - - [kubernetes@47450 namespace_name="test-namespace" pod_name="etcd-minikube" container_name="etcd"] some-log` + "\n",
+			`<14>1 1970-01-01T00:00:00+00:00 some-host test-namespace/etcd-minikube/etcd - - [kubernetes@47450 namespace_name="test-namespace" object_name="etcd-minikube" container_name="etcd"] some-log` + "\n",
 		)
 	})
 
@@ -200,7 +200,7 @@ var _ = Describe("Out", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		spySink.expectReceived(
-			`<14>1 1970-01-01T00:00:00+00:00 some-host namespace-name-very-long/pod/pod-name/container- - - [kubernetes@47450 namespace_name="namespace-name-very-long" pod_name="pod-name" container_name="container-name-very-long"] some-log` + "\n",
+			`<14>1 1970-01-01T00:00:00+00:00 some-host namespace-name-very-long/pod-name/container-name - - [kubernetes@47450 namespace_name="namespace-name-very-long" object_name="pod-name" container_name="container-name-very-long"] some-log` + "\n",
 		)
 	})
 
@@ -227,7 +227,7 @@ var _ = Describe("Out", func() {
 
 		Expect(err).ToNot(HaveOccurred())
 		spySink.expectReceivedOnly(
-			`<14>1 1970-01-01T00:00:00+00:00 some-host namespace-name-very-long/pod/pod-name/container- - - [kubernetes@47450 namespace_name="namespace-name-very-long" pod_name="pod-name" container_name="container-name-very-long"] some-log` + "\n",
+			`<14>1 1970-01-01T00:00:00+00:00 some-host namespace-name-very-long/pod-name/container-name - - [kubernetes@47450 namespace_name="namespace-name-very-long" object_name="pod-name" container_name="container-name-very-long"] some-log` + "\n",
 		)
 	})
 
@@ -263,10 +263,10 @@ var _ = Describe("Out", func() {
 		}()
 
 		spySink1.expectReceived(
-			`<14>1 1970-01-01T00:00:00+00:00 - ns1/pod// - - [kubernetes@47450 namespace_name="ns1" pod_name="" container_name=""] some-log-for-ns1` + "\n",
+			`<14>1 1970-01-01T00:00:00+00:00 - ns1// - - [kubernetes@47450 namespace_name="ns1" object_name="" container_name=""] some-log-for-ns1` + "\n",
 		)
 		spySink2.expectReceived(
-			`<14>1 1970-01-01T00:00:00+00:00 - ns1/pod// - - [kubernetes@47450 namespace_name="ns1" pod_name="" container_name=""] some-log-for-ns1` + "\n",
+			`<14>1 1970-01-01T00:00:00+00:00 - ns1// - - [kubernetes@47450 namespace_name="ns1" object_name="" container_name=""] some-log-for-ns1` + "\n",
 		)
 	})
 
@@ -304,10 +304,10 @@ var _ = Describe("Out", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		spySink1.expectReceived(
-			`<14>1 1970-01-01T00:00:00+00:00 - ns1/pod// - - [kubernetes@47450 namespace_name="ns1" pod_name="" container_name=""] some-log-for-ns1` + "\n",
+			`<14>1 1970-01-01T00:00:00+00:00 - ns1// - - [kubernetes@47450 namespace_name="ns1" object_name="" container_name=""] some-log-for-ns1` + "\n",
 		)
 		spySink2.expectReceived(
-			`<14>1 1970-01-01T00:00:00+00:00 - ns2/pod// - - [kubernetes@47450 namespace_name="ns2" pod_name="" container_name=""] some-log-for-ns2` + "\n",
+			`<14>1 1970-01-01T00:00:00+00:00 - ns2// - - [kubernetes@47450 namespace_name="ns2" object_name="" container_name=""] some-log-for-ns2` + "\n",
 		)
 	})
 
@@ -352,15 +352,15 @@ var _ = Describe("Out", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		spySink1.expectReceivedOnly(
-			`<14>1 1970-01-01T00:00:00+00:00 - ns1/pod// - - [kubernetes@47450 namespace_name="ns1" pod_name="" container_name=""] some-log-for-ns1` + "\n",
+			`<14>1 1970-01-01T00:00:00+00:00 - ns1// - - [kubernetes@47450 namespace_name="ns1" object_name="" container_name=""] some-log-for-ns1` + "\n",
 		)
 		spyClusterSink1.expectReceivedOnly(
-			`<14>1 1970-01-01T00:00:00+00:00 - ns1/pod// - - [kubernetes@47450 namespace_name="ns1" pod_name="" container_name=""] some-log-for-ns1`+"\n",
-			`<14>1 1970-01-01T00:00:00+00:00 - ns2/pod// - - [kubernetes@47450 namespace_name="ns2" pod_name="" container_name=""] some-log-for-ns2`+"\n",
+			`<14>1 1970-01-01T00:00:00+00:00 - ns1// - - [kubernetes@47450 namespace_name="ns1" object_name="" container_name=""] some-log-for-ns1`+"\n",
+			`<14>1 1970-01-01T00:00:00+00:00 - ns2// - - [kubernetes@47450 namespace_name="ns2" object_name="" container_name=""] some-log-for-ns2`+"\n",
 		)
 		spyClusterSink2.expectReceivedOnly(
-			`<14>1 1970-01-01T00:00:00+00:00 - ns1/pod// - - [kubernetes@47450 namespace_name="ns1" pod_name="" container_name=""] some-log-for-ns1`+"\n",
-			`<14>1 1970-01-01T00:00:00+00:00 - ns2/pod// - - [kubernetes@47450 namespace_name="ns2" pod_name="" container_name=""] some-log-for-ns2`+"\n",
+			`<14>1 1970-01-01T00:00:00+00:00 - ns1// - - [kubernetes@47450 namespace_name="ns1" object_name="" container_name=""] some-log-for-ns1`+"\n",
+			`<14>1 1970-01-01T00:00:00+00:00 - ns2// - - [kubernetes@47450 namespace_name="ns2" object_name="" container_name=""] some-log-for-ns2`+"\n",
 		)
 	})
 
@@ -455,7 +455,7 @@ var _ = Describe("Out", func() {
 					"container_name": []byte("some-container"),
 				},
 			},
-			`<14>1 1970-01-01T00:00:00+00:00 some-host some-ns/pod/some-pod/some-container - - [kubernetes@47450 namespace_name="some-ns" pod_name="some-pod" container_name="some-container"] `+"\n",
+			`<14>1 1970-01-01T00:00:00+00:00 some-host some-ns/some-pod/some-container - - [kubernetes@47450 namespace_name="some-ns" object_name="some-pod" container_name="some-container"] `+"\n",
 		),
 		Entry(
 			"log message is of different type",
@@ -468,7 +468,7 @@ var _ = Describe("Out", func() {
 					"container_name": []byte("some-container"),
 				},
 			},
-			`<14>1 1970-01-01T00:00:00+00:00 some-host some-ns/pod/some-pod/some-container - - [kubernetes@47450 namespace_name="some-ns" pod_name="some-pod" container_name="some-container"] `+"\n",
+			`<14>1 1970-01-01T00:00:00+00:00 some-host some-ns/some-pod/some-container - - [kubernetes@47450 namespace_name="some-ns" object_name="some-pod" container_name="some-container"] `+"\n",
 		),
 		Entry(
 			"log message key is of different type",
@@ -481,7 +481,7 @@ var _ = Describe("Out", func() {
 					"container_name": []byte("some-container"),
 				},
 			},
-			`<14>1 1970-01-01T00:00:00+00:00 some-host some-ns/pod/some-pod/some-container - - [kubernetes@47450 namespace_name="some-ns" pod_name="some-pod" container_name="some-container"] `+"\n",
+			`<14>1 1970-01-01T00:00:00+00:00 some-host some-ns/some-pod/some-container - - [kubernetes@47450 namespace_name="some-ns" object_name="some-pod" container_name="some-container"] `+"\n",
 		),
 		Entry(
 			"no host",
@@ -493,7 +493,7 @@ var _ = Describe("Out", func() {
 					"container_name": []byte("some-container"),
 				},
 			},
-			`<14>1 1970-01-01T00:00:00+00:00 - some-ns/pod/some-pod/some-container - - [kubernetes@47450 namespace_name="some-ns" pod_name="some-pod" container_name="some-container"] some-log`+"\n",
+			`<14>1 1970-01-01T00:00:00+00:00 - some-ns/some-pod/some-container - - [kubernetes@47450 namespace_name="some-ns" object_name="some-pod" container_name="some-container"] some-log`+"\n",
 		),
 		Entry(
 			"host key is of different type",
@@ -506,7 +506,7 @@ var _ = Describe("Out", func() {
 					"container_name": []byte("some-container"),
 				},
 			},
-			`<14>1 1970-01-01T00:00:00+00:00 - some-ns/pod/some-pod/some-container - - [kubernetes@47450 namespace_name="some-ns" pod_name="some-pod" container_name="some-container"] some-log`+"\n",
+			`<14>1 1970-01-01T00:00:00+00:00 - some-ns/some-pod/some-container - - [kubernetes@47450 namespace_name="some-ns" object_name="some-pod" container_name="some-container"] some-log`+"\n",
 		),
 		Entry(
 			"host is of different type",
@@ -519,7 +519,7 @@ var _ = Describe("Out", func() {
 					"container_name": []byte("some-container"),
 				},
 			},
-			`<14>1 1970-01-01T00:00:00+00:00 - some-ns/pod/some-pod/some-container - - [kubernetes@47450 namespace_name="some-ns" pod_name="some-pod" container_name="some-container"] some-log`+"\n",
+			`<14>1 1970-01-01T00:00:00+00:00 - some-ns/some-pod/some-container - - [kubernetes@47450 namespace_name="some-ns" object_name="some-pod" container_name="some-container"] some-log`+"\n",
 		),
 		Entry(
 			"no container name",
@@ -531,7 +531,7 @@ var _ = Describe("Out", func() {
 					"pod_name":       []byte("some-pod"),
 				},
 			},
-			`<14>1 1970-01-01T00:00:00+00:00 some-host some-ns/pod/some-pod/ - - [kubernetes@47450 namespace_name="some-ns" pod_name="some-pod" container_name=""] some-log`+"\n",
+			`<14>1 1970-01-01T00:00:00+00:00 some-host some-ns/some-pod/ - - [kubernetes@47450 namespace_name="some-ns" object_name="some-pod" container_name=""] some-log`+"\n",
 		),
 		Entry(
 			"container name is of different type",
@@ -544,7 +544,7 @@ var _ = Describe("Out", func() {
 					"container_name": []int{1, 2, 3, 4},
 				},
 			},
-			`<14>1 1970-01-01T00:00:00+00:00 some-host some-ns/pod/some-pod/ - - [kubernetes@47450 namespace_name="some-ns" pod_name="some-pod" container_name=""] some-log`+"\n",
+			`<14>1 1970-01-01T00:00:00+00:00 some-host some-ns/some-pod/ - - [kubernetes@47450 namespace_name="some-ns" object_name="some-pod" container_name=""] some-log`+"\n",
 		),
 		Entry(
 			"no pod name",
@@ -556,7 +556,7 @@ var _ = Describe("Out", func() {
 					"container_name": []byte("some-container"),
 				},
 			},
-			`<14>1 1970-01-01T00:00:00+00:00 some-host some-ns/pod//some-container - - [kubernetes@47450 namespace_name="some-ns" pod_name="" container_name="some-container"] some-log`+"\n",
+			`<14>1 1970-01-01T00:00:00+00:00 some-host some-ns//some-container - - [kubernetes@47450 namespace_name="some-ns" object_name="" container_name="some-container"] some-log`+"\n",
 		),
 		Entry(
 			"pod name is of different type",
@@ -569,7 +569,7 @@ var _ = Describe("Out", func() {
 					"container_name": []byte("some-container"),
 				},
 			},
-			`<14>1 1970-01-01T00:00:00+00:00 some-host some-ns/pod//some-container - - [kubernetes@47450 namespace_name="some-ns" pod_name="" container_name="some-container"] some-log`+"\n",
+			`<14>1 1970-01-01T00:00:00+00:00 some-host some-ns//some-container - - [kubernetes@47450 namespace_name="some-ns" object_name="" container_name="some-container"] some-log`+"\n",
 		),
 	)
 
@@ -599,7 +599,7 @@ var _ = Describe("Out", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			spySink.expectReceived(
-				`<14>1 1970-01-01T00:00:00+00:00 - some-namespace/pod// - - [kubernetes@47450 namespace_name="some-namespace" pod_name="" container_name=""] some-log-message` + "\n",
+				`<14>1 1970-01-01T00:00:00+00:00 - some-namespace// - - [kubernetes@47450 namespace_name="some-namespace" object_name="" container_name=""] some-log-message` + "\n",
 			)
 		})
 
@@ -622,7 +622,7 @@ var _ = Describe("Out", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			spySink.expectReceived(
-				`<14>1 1970-01-01T00:00:00+00:00 - some-namespace/pod// - - [kubernetes@47450 namespace_name="some-namespace" pod_name="" container_name=""] some-log-message` + "\n",
+				`<14>1 1970-01-01T00:00:00+00:00 - some-namespace// - - [kubernetes@47450 namespace_name="some-namespace" object_name="" container_name=""] some-log-message` + "\n",
 			)
 
 			err = out.Write(record, time.Unix(0, 0).UTC(), "")
@@ -654,7 +654,7 @@ var _ = Describe("Out", func() {
 			err := out.Write(r1, time.Unix(0, 0).UTC(), "")
 			Expect(err).ToNot(HaveOccurred())
 			spySink.expectReceived(
-				`<14>1 1970-01-01T00:00:00+00:00 - some-namespace/pod// - - [kubernetes@47450 namespace_name="some-namespace" pod_name="" container_name=""] some-log-message` + "\n",
+				`<14>1 1970-01-01T00:00:00+00:00 - some-namespace// - - [kubernetes@47450 namespace_name="some-namespace" object_name="" container_name=""] some-log-message` + "\n",
 			)
 
 			spySink.stop()
@@ -676,7 +676,7 @@ var _ = Describe("Out", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			spySink.expectReceived(
-				`<14>1 1970-01-01T00:00:00+00:00 - some-namespace/pod// - - [kubernetes@47450 namespace_name="some-namespace" pod_name="" container_name=""] some-log-message-2` + "\n",
+				`<14>1 1970-01-01T00:00:00+00:00 - some-namespace// - - [kubernetes@47450 namespace_name="some-namespace" object_name="" container_name=""] some-log-message-2` + "\n",
 			)
 		})
 
@@ -720,7 +720,7 @@ var _ = Describe("Out", func() {
 			}()
 
 			spySink.expectReceived(
-				`<14>1 1970-01-01T00:00:00+00:00 - some-namespace/pod// - - [kubernetes@47450 namespace_name="some-namespace" pod_name="" container_name=""] some-log-message` + "\n",
+				`<14>1 1970-01-01T00:00:00+00:00 - some-namespace// - - [kubernetes@47450 namespace_name="some-namespace" object_name="" container_name=""] some-log-message` + "\n",
 			)
 		})
 
@@ -750,7 +750,7 @@ var _ = Describe("Out", func() {
 			}()
 
 			spySink.expectReceived(
-				`<14>1 1970-01-01T00:00:00+00:00 - some-namespace/pod// - - [kubernetes@47450 namespace_name="some-namespace" pod_name="" container_name=""] some-log-message` + "\n",
+				`<14>1 1970-01-01T00:00:00+00:00 - some-namespace// - - [kubernetes@47450 namespace_name="some-namespace" object_name="" container_name=""] some-log-message` + "\n",
 			)
 
 			goOn := make(chan struct{})
@@ -795,7 +795,7 @@ var _ = Describe("Out", func() {
 				Expect(err).ToNot(HaveOccurred())
 			}()
 			spySink.expectReceived(
-				`<14>1 1970-01-01T00:00:00+00:00 - some-namespace/pod// - - [kubernetes@47450 namespace_name="some-namespace" pod_name="" container_name=""] some-log-message` + "\n",
+				`<14>1 1970-01-01T00:00:00+00:00 - some-namespace// - - [kubernetes@47450 namespace_name="some-namespace" object_name="" container_name=""] some-log-message` + "\n",
 			)
 
 			spySink.stop()
@@ -820,7 +820,7 @@ var _ = Describe("Out", func() {
 			}()
 
 			spySink.expectReceived(
-				`<14>1 1970-01-01T00:00:00+00:00 - some-namespace/pod// - - [kubernetes@47450 namespace_name="some-namespace" pod_name="" container_name=""] some-log-message-2` + "\n",
+				`<14>1 1970-01-01T00:00:00+00:00 - some-namespace// - - [kubernetes@47450 namespace_name="some-namespace" object_name="" container_name=""] some-log-message-2` + "\n",
 			)
 		})
 
@@ -853,7 +853,7 @@ var _ = Describe("Out", func() {
 			}()
 
 			spySink.expectReceivedOnly(
-				`<14>1 1970-01-01T00:00:00+00:00 - some-ns/pod// - - [kubernetes@47450 namespace_name="some-ns" pod_name="" container_name=""] some-log` + "\n",
+				`<14>1 1970-01-01T00:00:00+00:00 - some-ns// - - [kubernetes@47450 namespace_name="some-ns" object_name="" container_name=""] some-log` + "\n",
 			)
 		})
 
