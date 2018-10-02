@@ -1,6 +1,10 @@
 # Run test with one command
 Make sure docker-compose has been installed in your env.
 
+NOTE: These tests won't run correctly if the project is installed in a `go
+mod` environment. That is, these tests will run fine if the project is within
+a $GOPATH.
+
 ```
 cd fluent-bit-out-syslog/tests
 ./test.sh

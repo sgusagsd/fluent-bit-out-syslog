@@ -1,12 +1,12 @@
 Table of Contents
 =================
 
+   * [Table of Contents](#table-of-contents)
    * [Fluent Bit Syslog Output Plugin](#fluent-bit-syslog-output-plugin)
       * [How To Run In Local laptop](#how-to-run-in-local-laptop)
-      * [How To Run In minikube](#how-to-run-in-minikube)
       * [How To Run Linter](#how-to-run-linter)
+      * [How to Configure Fluent Bit Conf](#how-to-configure-fluent-bit-conf)
    * [Sample Config File](#sample-config-file)
-      * [Plain syslog output plugin](#plain-syslog-output-plugin)
       * [Syslog output plugin with kubernetes namespace filter](#syslog-output-plugin-with-kubernetes-namespace-filter)
 
 # Fluent Bit Syslog Output Plugin
@@ -30,7 +30,7 @@ cd $GOPATH/src/github.com/pivotal-cf/fluent-bit-out-syslog/cmd
 go build -buildmode c-shared -o out_syslog.so .
 
 # run test
-cd $GOPATH/src/github.com/pivotal-cf/fluent-bit-out-syslog/cmd
+cd $GOPATH/src/github.com/pivotal-cf/fluent-bit-out-syslog
 go test -v ./...
 ```
 
@@ -47,33 +47,23 @@ fluent-bit \
     --input dummy \
     --plugin ./out_syslog.so \
     --output syslog \
-    --prop Addr=localhost:12345
+    --prop ClusterSinks=[{"addr": "localhost:12345"}]
 ```
-
-## How To Run In minikube
-
-[tests/fluent-bit-kubernetes/README.md](tests/fluent-bit-kubernetes/README.md)
 
 ## How To Run Linter
 ```
 ./tests/run-linter.sh
 ```
 
-## How to Configure In Fluent Bit Conf
-Add the following output section to your Fluent Bit configuration file. Note
-that the `EnableTLS` and `InsecureSkipVerify` configurations are optional and
-only needed if you are connecting to an endpoint that supports TLS. By
-default, both of those optional fields are false.
+## How to Configure Fluent Bit Conf
+Add the following output section to the fluent bit configuration file. Note
+that the `tls` configuration is optional and is required only if connecting to
+an endpoint that supports TLS.
+`Sinks` are also referred to as namespace sinks and allow to forward logs from
+a particular namespace onto a syslog destination. Whereas, `ClusterSinks`
+forward all logs from all namespaces to the specified syslog destination.
 
 # Sample Config File
-## Plain syslog output plugin
-```
-[OUTPUT]
-	Name syslog
-	Match *
-	Sinks [{"addr":"logs.papertrailapp.com:18271", "enable_tls":"true", "insecure_skip_verify":"true"}]
-```
-
 ## Syslog output plugin with kubernetes namespace filter
 
 ```
@@ -97,6 +87,6 @@ default, both of those optional fields are false.
 [OUTPUT]
     Name syslog
     Match *
-    Sinks [{"addr":"logs.papertrailapp.com:18271", "namespace":"myns", "enable_tls":"true", "insecure_skip_verify":"true"}]
-    ClusterSinks [{"addr":"logs.papertrailapp.com:18272", "enable_tls":"true", "insecure_skip_verify":"true"}]
+	Sinks [{"addr":"logs.papertrailapp.com:18271", "namespace": "myns", "tls":{"insecure_skip_verify":"true"}}]
+	ClusterSinks [{"addr":"logs.papertrailapp.com:18271"}]
 ```

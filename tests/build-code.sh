@@ -16,7 +16,7 @@ function ensure_variable_isset {
 }
 
 function build_code {
-    if [ -f /go/tests/out_syslog.so ]; then
+    if [ -f /go/tests/out_syslog.so ] || [ -d /go/tests/out_syslog.so ]; then
         log "Remove old out_syslog.so"
         rm -rf /go/tests/out_syslog.so
     fi
