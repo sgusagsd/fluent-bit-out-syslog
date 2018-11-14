@@ -14,6 +14,11 @@ import (
 // TODO: Address issues where messages are malformed but we are not notifying
 // the user.
 
+const (
+	eventTag = "k8s.event"
+	logTag   = "pod.log"
+)
+
 type Sink struct {
 	Addr      string `json:"addr"`
 	Namespace string `json:"namespace"`
@@ -85,9 +90,9 @@ func NewOut(sinks, clusterSinks []*Sink, opts ...OutOption) *Out {
 func (o *Out) Write(
 	record map[interface{}]interface{},
 	ts time.Time,
-	_ string, // Tag is not used at this time.
+	tag string,
 ) error {
-	msg, namespace := convert(record, ts)
+	msg, namespace := convert(record, ts, tag)
 
 	var errCount int
 	for _, cs := range o.clusterSinks {
@@ -171,6 +176,7 @@ func tcpMaintainConn(s *Sink, out *Out) func() error {
 func convert(
 	record map[interface{}]interface{},
 	ts time.Time,
+	tag string,
 ) (*rfc5424.Message, string) {
 	var (
 		logmsg []byte
@@ -241,9 +247,12 @@ func convert(
 	}
 
 	if len(k8sMap) != 0 {
-		// sample: kube-system/pod/kube-dns-86f4d74b45-lfgj7/dnsmasq
+		if tag != eventTag {
+			tag = logTag
+		}
 		appName = fmt.Sprintf(
-			"%s/%s/%s",
+			"%s/%s/%s/%s",
+			tag,
 			namespaceName,
 			podName,
 			containerName,
