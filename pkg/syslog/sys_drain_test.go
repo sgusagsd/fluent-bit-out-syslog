@@ -127,6 +127,11 @@ func (s *spySink) expectReceivedWithSD(sds ...[]rfc5424.StructuredData) {
 		var msg rfc5424.Message
 		err = msg.UnmarshalBinary(data)
 		ExpectWithOffset(1, err).ToNot(HaveOccurred())
-		ExpectWithOffset(1, msg.StructuredData).To(Equal(expectedSD))
+		ExpectWithOffset(1, msg.StructuredData).To(HaveLen(len(expectedSD)))
+
+		for i, sd := range msg.StructuredData {
+			ExpectWithOffset(1, sd.ID).To(Equal(expectedSD[i].ID))
+			ExpectWithOffset(1, sd.Parameters).Should(ConsistOf(expectedSD[i].Parameters))
+		}
 	}
 }

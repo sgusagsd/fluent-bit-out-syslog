@@ -211,6 +211,7 @@ func convert(
 		podName       string
 		namespaceName string
 		containerName string
+		labelParams   []rfc5424.SDParam
 	)
 	for k, v := range k8sMap {
 		key, ok := k.(string)
@@ -243,8 +244,21 @@ func convert(
 				continue
 			}
 			namespaceName = string(v2)
+		case "labels":
+			v2, ok2 := v.(map[interface{}]interface{})
+			if !ok2 {
+				continue
+			}
+			labelParams = processLabels(v2)
 		}
 	}
+
+	k8sStructuredData := buildStructuredData(
+		labelParams,
+		namespaceName,
+		podName,
+		containerName,
+	)
 
 	if len(k8sMap) != 0 {
 		if tag != eventTag {
@@ -275,23 +289,46 @@ func convert(
 		AppName:   appName,
 		Message:   logmsg,
 		StructuredData: []rfc5424.StructuredData{
-			{
-				ID: "kubernetes@47450",
-				Parameters: []rfc5424.SDParam{
-					{
-						Name:  "namespace_name",
-						Value: namespaceName,
-					},
-					{
-						Name:  "object_name",
-						Value: podName,
-					},
-					{
-						Name:  "container_name",
-						Value: containerName,
-					},
-				},
-			},
+			k8sStructuredData,
 		},
 	}, namespaceName
+}
+
+func processLabels(labels map[interface{}]interface{}) []rfc5424.SDParam {
+	params := make([]rfc5424.SDParam, 0, len(labels))
+	for k, v := range labels {
+		ks, ok := k.(string)
+		if !ok {
+			continue
+		}
+		vb, ok := v.([]byte)
+		if !ok {
+			continue
+		}
+
+		params = append(params, rfc5424.SDParam{
+			Name:  string(ks),
+			Value: string(vb),
+		})
+	}
+	return params
+}
+
+func buildStructuredData(labels []rfc5424.SDParam, ns, pn, cn string) rfc5424.StructuredData {
+	labels = append(labels,
+		rfc5424.SDParam{
+			Name:  "namespace_name",
+			Value: ns,
+		}, rfc5424.SDParam{
+			Name:  "object_name",
+			Value: pn,
+		}, rfc5424.SDParam{
+			Name:  "container_name",
+			Value: cn,
+		})
+
+	return rfc5424.StructuredData{
+		ID:         "kubernetes@47450",
+		Parameters: labels,
+	}
 }

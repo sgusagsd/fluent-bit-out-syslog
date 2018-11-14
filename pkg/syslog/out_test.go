@@ -56,6 +56,119 @@ var _ = Describe("Out", func() {
 		)
 	})
 
+	It("adds labels as structured data to syslog message", func() {
+		spySink := newSpySink()
+		defer spySink.stop()
+		s := syslog.Sink{
+			Addr:      spySink.url(),
+			Namespace: "kube-system",
+		}
+		out := syslog.NewOut([]*syslog.Sink{&s}, nil)
+		record := map[interface{}]interface{}{
+			"log": []byte("some-log"),
+			"kubernetes": map[interface{}]interface{}{
+				"labels": map[interface{}]interface{}{
+					"component":                     []byte("kube-addon-manager"),
+					"kubernetes.io/minikube-addons": []byte("addon-manager"),
+					"version":                       []byte("v8.6"),
+				},
+				"pod_name":       []byte("etcd-minikube"),
+				"namespace_name": []byte("kube-system"),
+				"host":           []byte("some-host"),
+				"container_name": []byte("etcd"),
+			},
+		}
+
+		err := out.Write(record, time.Unix(0, 0).UTC(), "pod.log")
+
+		Expect(err).ToNot(HaveOccurred())
+		spySink.expectReceivedWithSD(
+			[]rfc5424.StructuredData{
+				{
+					ID: "kubernetes@47450",
+					Parameters: []rfc5424.SDParam{
+						{
+							Name:  "component",
+							Value: "kube-addon-manager",
+						},
+						{
+							Name:  "version",
+							Value: "v8.6",
+						},
+						{
+							Name:  "kubernetes.io/minikube-addons",
+							Value: "addon-manager",
+						},
+						{
+							Name:  "namespace_name",
+							Value: "kube-system",
+						},
+						{
+							Name:  "object_name",
+							Value: "etcd-minikube",
+						},
+						{
+							Name:  "container_name",
+							Value: "etcd",
+						},
+					},
+				},
+			},
+		)
+	})
+
+	It("skips labels that are not string/[]byte type", func() {
+		spySink := newSpySink()
+		defer spySink.stop()
+		s := syslog.Sink{
+			Addr:      spySink.url(),
+			Namespace: "kube-system",
+		}
+		out := syslog.NewOut([]*syslog.Sink{&s}, nil)
+		record := map[interface{}]interface{}{
+			"log": []byte("some-log"),
+			"kubernetes": map[interface{}]interface{}{
+				"labels": map[interface{}]interface{}{
+					"component": []byte("kube-addon-manager"),
+					123:         []byte("addon-manager"),
+					"stuff":     "addon-manager",
+				},
+				"namespace_name": []byte("kube-system"),
+				"pod_name":       []byte("etcd-minikube"),
+				"container_name": []byte("etcd"),
+			},
+		}
+
+		err := out.Write(record, time.Unix(0, 0).UTC(), "pod.log")
+
+		Expect(err).ToNot(HaveOccurred())
+		spySink.expectReceivedWithSD(
+			[]rfc5424.StructuredData{
+				{
+					ID: "kubernetes@47450",
+					Parameters: []rfc5424.SDParam{
+						{
+							Name:  "component",
+							Value: "kube-addon-manager",
+						},
+						{
+							Name:  "namespace_name",
+							Value: "kube-system",
+						},
+						{
+							Name:  "object_name",
+							Value: "etcd-minikube",
+						},
+						{
+							Name:  "container_name",
+							Value: "etcd",
+						},
+					},
+				},
+			},
+		)
+	})
+
 	It("includes event in the app name if set on the record", func() {
 		spySink := newSpySink()
 		defer spySink.stop()
