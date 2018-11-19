@@ -307,7 +307,7 @@ func processLabels(labels map[interface{}]interface{}) []rfc5424.SDParam {
 		}
 
 		params = append(params, rfc5424.SDParam{
-			Name:  string(ks),
+			Name:  ks,
 			Value: string(vb),
 		})
 	}
