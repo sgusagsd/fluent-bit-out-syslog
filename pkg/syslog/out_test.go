@@ -643,14 +643,14 @@ var _ = Describe("Out", func() {
 		}()
 
 		select {
-		case <-time.After(2 * time.Second):
-			Fail("did not complete writes within two seconds")
+		case <-time.After(5 * time.Second):
+			Fail("did not complete writes within five seconds")
 		case <-writeDone:
 		}
 
 		select {
-		case <-time.After(2 * time.Second):
-			Fail("did not complete reads within two seconds")
+		case <-time.After(5 * time.Second):
+			Fail("did not complete reads within five seconds")
 		case <-readDone:
 		}
 	})
