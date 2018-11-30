@@ -56,7 +56,10 @@ func (s *spySink) url() string {
 }
 
 func (s *spySink) stop() {
-	_ = s.lis.Close()
+	err := s.lis.Close()
+	if err != nil {
+		fmt.Printf("error stopping the spysink: %s\n", err)
+	}
 }
 
 func (s *spySink) accept() net.Conn {
@@ -65,11 +68,49 @@ func (s *spySink) accept() net.Conn {
 	return conn
 }
 
+func (s *spySink) expectReceivedIncludes(msgs ...string) {
+	conn := s.accept()
+	defer func() {
+		_ = conn.Close()
+	}()
+
+	expectedMsgs := make([]string, 0, len(msgs))
+	for _, expected := range msgs {
+		expectedMsgs = append(expectedMsgs, fmt.Sprintf("%d %s", len(expected), expected))
+	}
+
+	buf := bufio.NewReader(conn)
+	done := make(chan struct{})
+	go func() {
+		defer GinkgoRecover()
+		var matchedCount int
+		for {
+			actual, err := buf.ReadString('\n')
+			ExpectWithOffset(1, err).ToNot(HaveOccurred())
+			for _, expected := range expectedMsgs {
+				if expected == actual {
+					matchedCount++
+				}
+			}
+			if matchedCount == len(msgs) {
+				close(done)
+				return
+			}
+		}
+	}()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		Fail("Timedout reading messages", 1)
+	}
+}
+
 func (s *spySink) expectReceived(msgs ...string) {
 	conn := s.accept()
 	defer func() {
 		_ = conn.Close()
 	}()
+
 	buf := bufio.NewReader(conn)
 
 	for _, expected := range msgs {

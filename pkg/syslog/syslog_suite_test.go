@@ -1,6 +1,8 @@
 package syslog_test
 
 import (
+	"io/ioutil"
+	"log"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
@@ -9,5 +11,6 @@ import (
 
 func TestSyslog(t *testing.T) {
 	RegisterFailHandler(Fail)
+	log.SetOutput(ioutil.Discard)
 	RunSpecs(t, "Syslog Suite")
 }

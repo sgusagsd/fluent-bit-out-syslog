@@ -5,7 +5,9 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
+	"log"
 	"net"
+	"sync/atomic"
 	"time"
 
 	"code.cloudfoundry.org/rfc5424"
@@ -23,8 +25,11 @@ type Sink struct {
 	Addr      string `json:"addr"`
 	Namespace string `json:"namespace"`
 	TLS       *TLS   `json:"tls"`
+	messages  chan io.WriterTo
 
+	messagesDropped    int64
 	conn               net.Conn
+	writeTimeout       time.Duration
 	maintainConnection func() error
 }
 
@@ -37,6 +42,8 @@ type Out struct {
 	sinks        map[string][]*Sink
 	clusterSinks []*Sink
 	dialTimeout  time.Duration
+	bufferSize   int
+	writeTimeout time.Duration
 }
 
 type OutOption func(*Out)
@@ -47,10 +54,28 @@ func WithDialTimeout(d time.Duration) OutOption {
 	}
 }
 
+func WithBufferSize(s int) OutOption {
+	return func(o *Out) {
+		o.bufferSize = s
+	}
+}
+
+func WithWriteTimeout(t time.Duration) OutOption {
+	return func(o *Out) {
+		o.writeTimeout = t
+	}
+}
+
 // NewOut returns a new Out which handles both tcp and tls connections.
 func NewOut(sinks, clusterSinks []*Sink, opts ...OutOption) *Out {
 	out := &Out{
-		dialTimeout: 5 * time.Second,
+		dialTimeout:  5 * time.Second,
+		bufferSize:   10000,
+		writeTimeout: time.Second,
+	}
+
+	for _, o := range opts {
+		o(out)
 	}
 
 	m := make(map[string][]*Sink)
@@ -62,6 +87,8 @@ func NewOut(sinks, clusterSinks []*Sink, opts ...OutOption) *Out {
 		}
 
 		m[s.Namespace] = append(m[s.Namespace], s)
+		s.writeTimeout = out.writeTimeout
+		s.start(out.bufferSize)
 	}
 	for _, s := range clusterSinks {
 		if s.TLS != nil {
@@ -69,70 +96,85 @@ func NewOut(sinks, clusterSinks []*Sink, opts ...OutOption) *Out {
 		} else {
 			s.maintainConnection = tcpMaintainConn(s, out)
 		}
+		s.writeTimeout = out.writeTimeout
+		s.start(out.bufferSize)
 	}
 	out.sinks = m
 	out.clusterSinks = clusterSinks
-
-	for _, o := range opts {
-		o(out)
-	}
-
 	return out
 }
 
 // Write takes a record, timestamp, and tag, converts it into a syslog message
-// and routes it to the connection with the matching namespace. If there are
-// no connections configured for a record's namespace, it drops the message.
+// and routes it to the connections with the matching namespace.
+// Each sink has it's own backing network connection and queue. The queue's
+// size is fixed to 10000 messages. It will report dropped messages via a log
+// for every 1000 messages dropped.
 // If no connection is established one will be established per sink upon a
-// Write operation. If all sinks for a namespace fail to write, Write will
-// return an error. Write will also write all messages to all cluster sinks
+// Write operation. Write will also write all messages to all cluster sinks
 // provided.
 func (o *Out) Write(
 	record map[interface{}]interface{},
 	ts time.Time,
 	tag string,
-) error {
+) {
 	msg, namespace := convert(record, ts, tag)
 
-	var errCount int
 	for _, cs := range o.clusterSinks {
-		if cs.write(msg) != nil {
-			errCount++
-		}
+		cs.queueMessage(msg)
 	}
 
 	namespaceSinks, ok := o.sinks[namespace]
 	if !ok {
 		// TODO: track ignored messages
-		return nil
+		return
 	}
 
 	for _, s := range namespaceSinks {
-		if s.write(msg) != nil {
-			errCount++
+		s.queueMessage(msg)
+	}
+}
+
+func (s *Sink) start(bufferSize int) {
+	s.messages = make(chan io.WriterTo, bufferSize)
+	go func() {
+		for m := range s.messages {
+			s.write(m)
+		}
+	}()
+}
+
+func (s *Sink) queueMessage(msg io.WriterTo) {
+	select {
+	case s.messages <- msg:
+	default:
+		atomic.AddInt64(&s.messagesDropped, 1)
+		md := atomic.LoadInt64(&s.messagesDropped)
+		if md%1000 == 0 && md != 0 {
+			log.Printf("Sink to address %s, at namespace [%s] dropped %d messages\n", s.Addr, s.Namespace, md)
 		}
 	}
-
-	if errCount == len(namespaceSinks)+len(o.clusterSinks) {
-		return fmt.Errorf("failed to write to all sinks for namespace: %s", namespace)
-	}
-	return nil
 }
 
 // write writes a rfc5424 syslog message to the connection of the specified
 // sink. It recreates the connection if one isn't established yet.
-func (s *Sink) write(w io.WriterTo) error {
+func (s *Sink) write(w io.WriterTo) {
 	err := s.maintainConnection()
 	if err != nil {
-		return err
+		atomic.AddInt64(&s.messagesDropped, 1)
+		return
 	}
-
+	s.conn.SetWriteDeadline(time.Now().Add(s.writeTimeout))
 	_, err = w.WriteTo(s.conn)
 	if err != nil {
+		s.conn.Close()
 		s.conn = nil
-		return err
+		atomic.AddInt64(&s.messagesDropped, 1)
+		return
 	}
-	return nil
+}
+
+func (s *Sink) MessagesDropped() int64 {
+	return atomic.LoadInt64(&s.messagesDropped)
 }
 
 func tlsMaintainConn(s *Sink, out *Out) func() error {
@@ -161,12 +203,14 @@ func tlsMaintainConn(s *Sink, out *Out) func() error {
 
 func tcpMaintainConn(s *Sink, out *Out) func() error {
 	return func() error {
-		dialer := net.Dialer{
-			Timeout: out.dialTimeout,
-		}
 		if s.conn == nil {
+			dialer := net.Dialer{
+				Timeout: out.dialTimeout,
+			}
 			conn, err := dialer.Dial("tcp", s.Addr)
-			s.conn = conn
+			if err == nil {
+				s.conn = conn
+			}
 			return err
 		}
 		return nil

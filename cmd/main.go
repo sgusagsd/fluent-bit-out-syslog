@@ -89,12 +89,7 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 			timestamp = time.Now()
 		}
 
-		err := out.Write(record, timestamp, C.GoString(tag))
-		if err != nil {
-			// TODO: switch over to FLB_RETRY when we are capable of retrying
-			// TODO: how we know the flush keeps running issues.
-			return output.FLB_ERROR
-		}
+		out.Write(record, timestamp, C.GoString(tag))
 	}
 
 	return output.FLB_OK
