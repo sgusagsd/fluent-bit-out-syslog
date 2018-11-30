@@ -163,7 +163,7 @@ func (s *Sink) write(w io.WriterTo) {
 		atomic.AddInt64(&s.messagesDropped, 1)
 		return
 	}
-	s.conn.SetWriteDeadline(time.Now().Add(s.writeTimeout))
+	_ = s.conn.SetWriteDeadline(time.Now().Add(s.writeTimeout))
 	_, err = w.WriteTo(s.conn)
 	if err != nil {
 		s.conn.Close()
