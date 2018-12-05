@@ -10,8 +10,12 @@ import (
 	"github.com/fluent/fluent-bit-go/output"
 	"github.com/pivotal-cf/fluent-bit-out-syslog/pkg/syslog"
 )
+import "sync"
 
-var out *syslog.Out
+var (
+	out  *syslog.Out
+	once sync.Once
+)
 
 //export FLBPluginRegister
 func FLBPluginRegister(ctx unsafe.Pointer) int {
@@ -27,7 +31,7 @@ func FLBPluginInit(ctx unsafe.Pointer) int {
 	s := output.FLBPluginConfigKey(ctx, "sinks")
 	cs := output.FLBPluginConfigKey(ctx, "clustersinks")
 	if s == "" && cs == "" {
-		log.Println("[out_syslog] ERROR: sinks can't be empty")
+		log.Println("[out_syslog] ERROR: Sinks or ClusterSinks need to be configured")
 		return output.FLB_ERROR
 	}
 
@@ -42,20 +46,20 @@ func FLBPluginInit(ctx unsafe.Pointer) int {
 	if len(s) != 0 {
 		err := json.Unmarshal([]byte(s), &sinks)
 		if err != nil {
-			log.Printf("[out_syslog] unable to unmarshal sinks: %s", err)
+			log.Printf("[out_syslog] ERROR: unable to unmarshal sinks: %s", err)
 			return output.FLB_ERROR
 		}
 	}
 	if len(cs) != 0 {
 		err := json.Unmarshal([]byte(cs), &clusterSinks)
 		if err != nil {
-			log.Printf("[out_syslog] unable to unmarshal cluster sinks: %s", err)
+			log.Printf("[out_syslog] ERROR: unable to unmarshal cluster sinks: %s", err)
 			return output.FLB_ERROR
 		}
 	}
 
 	if len(sinks)+len(clusterSinks) == 0 {
-		log.Println("[out_syslog] require at least one sink or cluster sink")
+		log.Println("[out_syslog] ERROR: require at least one sink or cluster sink")
 		return output.FLB_ERROR
 	}
 	out = syslog.NewOut(sinks, clusterSinks)
@@ -69,6 +73,13 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 		ts     interface{}
 		record map[interface{}]interface{}
 	)
+
+	if out == nil {
+		once.Do(func() {
+			log.Println("[out_syslog] ERROR: trying to flush to an uninitialized output plugin")
+		})
+		return output.FLB_ERROR
+	}
 
 	dec := output.NewDecoder(data, int(length))
 	for {
