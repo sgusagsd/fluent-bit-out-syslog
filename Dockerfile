@@ -23,10 +23,10 @@ RUN go build \
 FROM ubuntu:xenial as builder
 
 # Fluent Bit version
-ENV FLB_MAJOR 0
-ENV FLB_MINOR 14
-ENV FLB_PATCH 8
-ENV FLB_VERSION 0.14.8
+ENV FLB_MAJOR 1
+ENV FLB_MINOR 0
+ENV FLB_PATCH 1
+ENV FLB_VERSION 1.0.1
 
 ENV DEBIAN_FRONTEND noninteractive
 
