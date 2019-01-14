@@ -1,15 +1,12 @@
-Table of Contents
-=================
-
-   * [Fluent Bit Syslog Output Plugin](#fluent-bit-syslog-output-plugin)
-      * [How to Configure Fluent Bit Conf](#how-to-configure-fluent-bit-conf)
-      * [Sample Config File](#sample-config-file)
-      * [Development](#development)
-
-
 # Fluent Bit Syslog Output Plugin
 
-The Fluent Bit Syslog Output plugin that translates kubernetes cluster logs into [RFC5424][rfc5424] syslog messages. It uses [Cloud Foundry's RFC5424 library][cfrfc5424]
+   * [How to Configure Fluent Bit Conf](#how-to-configure-fluent-bit-conf)
+   * [Sample Config File](#sample-config-file)
+   * [Development](#development)
+
+The Fluent Bit Syslog Output plugin translates kubernetes cluster logs
+into [RFC5424][rfc5424] syslog messages. It uses [Cloud Foundry's RFC5424
+library][cfrfc5424].
 
 ## How to Configure Fluent Bit Conf
 
