@@ -25,8 +25,8 @@ FROM ubuntu:xenial as builder
 # Fluent Bit version
 ENV FLB_MAJOR 1
 ENV FLB_MINOR 0
-ENV FLB_PATCH 3
-ENV FLB_VERSION 1.0.3
+ENV FLB_PATCH 4
+ENV FLB_VERSION 1.0.4
 
 ENV DEBIAN_FRONTEND noninteractive
 
