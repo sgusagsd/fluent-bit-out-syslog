@@ -29,9 +29,10 @@ type Sink struct {
 
 	messages chan io.WriterTo
 
-	messagesDropped int64
-	lastSentNanos   int64
-	writeErr        atomic.Value
+	messagesDropped      int64
+	lastSendSuccessNanos int64
+	lastSendAttemptNanos int64
+	writeErr             atomic.Value
 
 	conn               net.Conn
 	writeTimeout       time.Duration
@@ -150,10 +151,11 @@ func (o *Out) Stats() []Stat {
 			}
 
 			stats = append(stats, Stat{
-				Name:          s.Name,
-				Namespace:     s.Namespace,
-				LastSentNanos: atomic.LoadInt64(&s.lastSentNanos),
-				WriteError:    err,
+				Name:                 s.Name,
+				Namespace:            s.Namespace,
+				LastSendSuccessNanos: atomic.LoadInt64(&s.lastSendSuccessNanos),
+				LastSendAttemptNanos: atomic.LoadInt64(&s.lastSendAttemptNanos),
+				WriteError:           err,
 			})
 		}
 	}
@@ -165,9 +167,10 @@ func (o *Out) Stats() []Stat {
 		}
 
 		stats = append(stats, Stat{
-			Name:          s.Name,
-			LastSentNanos: atomic.LoadInt64(&s.lastSentNanos),
-			WriteError:    err,
+			Name:                 s.Name,
+			LastSendSuccessNanos: atomic.LoadInt64(&s.lastSendSuccessNanos),
+			LastSendAttemptNanos: atomic.LoadInt64(&s.lastSendAttemptNanos),
+			WriteError:           err,
 		})
 	}
 
@@ -175,10 +178,11 @@ func (o *Out) Stats() []Stat {
 }
 
 type Stat struct {
-	Name          string `json:"name"`
-	Namespace     string `json:"namespace"`
-	LastSentNanos int64  `json:"last_sent_nanos"`
-	WriteError    string `json:"write_error"`
+	Name                 string `json:"name"`
+	Namespace            string `json:"namespace"`
+	LastSendSuccessNanos int64  `json:"last_send_success_nanos"`
+	LastSendAttemptNanos int64  `json:"last_send_attempt_nanos"`
+	WriteError           string `json:"write_error"`
 }
 
 func (s *Sink) start(bufferSize int) {
@@ -204,6 +208,8 @@ func (s *Sink) queueMessage(msg io.WriterTo) {
 // write writes a rfc5424 syslog message to the connection of the specified
 // sink. It recreates the connection if one isn't established yet.
 func (s *Sink) write(w io.WriterTo) {
+	defer atomic.StoreInt64(&s.lastSendAttemptNanos, time.Now().UnixNano())
+
 	err := s.maintainConnection()
 	if err != nil {
 		atomic.AddInt64(&s.messagesDropped, 1)
@@ -220,7 +226,7 @@ func (s *Sink) write(w io.WriterTo) {
 		return
 	}
 	s.writeErr.Store("")
-	atomic.StoreInt64(&s.lastSentNanos, time.Now().UnixNano())
+	atomic.StoreInt64(&s.lastSendSuccessNanos, time.Now().UnixNano())
 }
 
 func (s *Sink) MessagesDropped() int64 {

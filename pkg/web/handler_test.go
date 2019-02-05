@@ -16,10 +16,11 @@ var _ = Describe("Handler", func() {
 		stats := syslogStater{
 			stat: []syslog.Stat{
 				{
-					Name:          "sink-name",
-					Namespace:     "ns1",
-					LastSentNanos: 10,
-					WriteError:    "error",
+					Name:                 "sink-name",
+					Namespace:            "ns1",
+					LastSendSuccessNanos: 10,
+					LastSendAttemptNanos: 10,
+					WriteError:           "error",
 				},
 			},
 		}
@@ -34,7 +35,8 @@ var _ = Describe("Handler", func() {
 				{
 					"name": "sink-name",
 					"namespace": "ns1",
-					"last_sent_nanos": 10,
+					"last_send_success_nanos": 10,
+					"last_send_attempt_nanos": 10,
 					"write_error": "error"
 				}
 			]

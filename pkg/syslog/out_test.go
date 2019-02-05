@@ -197,7 +197,7 @@ var _ = Describe("Out", func() {
 				Expect(stat.Namespace).To(Equal("ns1"))
 				Expect(stat.Name).To(Equal("sink-name"))
 				Expect(stat.WriteError).To(BeEmpty())
-				return stat.LastSentNanos
+				return stat.LastSendSuccessNanos
 			}).Should(BeNumerically(">", 0))
 		})
 
@@ -230,7 +230,7 @@ var _ = Describe("Out", func() {
 				Expect(stat.Namespace).To(Equal(""))
 				Expect(stat.Name).To(Equal("sink-name"))
 				Expect(stat.WriteError).To(BeEmpty())
-				return stat.LastSentNanos
+				return stat.LastSendSuccessNanos
 			}).Should(BeNumerically(">", 0))
 		})
 
@@ -259,12 +259,15 @@ var _ = Describe("Out", func() {
 			Eventually(func() string {
 				stats := out.Stats()
 				Expect(stats).To(HaveLen(1))
-
 				stat := stats[0]
 				Expect(stat.Namespace).To(Equal("ns1"))
 				Expect(stat.Name).To(Equal("sink-name"))
 				return stat.WriteError
 			}).Should(Equal("dial tcp 127.0.0.1:12345: connect: connection refused"))
+
+			stats := out.Stats()
+			stat := stats[0]
+			Expect(stat.LastSendAttemptNanos).To(BeNumerically(">", 0))
 
 			spySink := newSpySink("127.0.0.1:12345")
 			defer spySink.stop()
