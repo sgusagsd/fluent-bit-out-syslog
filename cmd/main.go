@@ -9,8 +9,12 @@ import (
 
 	"github.com/fluent/fluent-bit-go/output"
 	"github.com/pivotal-cf/fluent-bit-out-syslog/pkg/syslog"
+	"github.com/pivotal-cf/fluent-bit-out-syslog/pkg/web"
 )
-import "sync"
+import (
+	"net/http"
+	"sync"
+)
 
 var (
 	out  *syslog.Out
@@ -63,6 +67,15 @@ func FLBPluginInit(ctx unsafe.Pointer) int {
 		return output.FLB_ERROR
 	}
 	out = syslog.NewOut(sinks, clusterSinks)
+
+	statsAddr := output.FLBPluginConfigKey(ctx, "statsaddr")
+	if statsAddr == "" {
+		statsAddr = "127.0.0.1:5000"
+	}
+	go func() {
+		log.Println(http.ListenAndServe(statsAddr, web.NewHandler(out)))
+	}()
+
 	return output.FLB_OK
 }
 

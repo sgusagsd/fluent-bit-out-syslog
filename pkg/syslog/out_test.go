@@ -167,6 +167,129 @@ var _ = Describe("Out", func() {
 			)
 		})
 
+		It("keeps track of last sent message time", func() {
+			spySink := newSpySink()
+			defer spySink.stop()
+			s := syslog.Sink{
+				Addr:      spySink.url(),
+				Namespace: "ns1",
+				Name:      "sink-name",
+			}
+			out := syslog.NewOut([]*syslog.Sink{&s}, nil)
+			record := map[interface{}]interface{}{
+				"log": []byte("some-log"),
+				"kubernetes": map[interface{}]interface{}{
+					"namespace_name": []byte("ns1"),
+					"pod_name":       []byte("pod-name"),
+					"container_name": []byte("container-name"),
+				},
+			}
+
+			out.Write(record, time.Unix(0, 0).UTC(), "k8s.event")
+
+			spySink.accept().Close()
+
+			Eventually(func() int64 {
+				stats := out.Stats()
+				Expect(stats).To(HaveLen(1))
+
+				stat := stats[0]
+				Expect(stat.Namespace).To(Equal("ns1"))
+				Expect(stat.Name).To(Equal("sink-name"))
+				Expect(stat.WriteError).To(BeEmpty())
+				return stat.LastSentNanos
+			}).Should(BeNumerically(">", 0))
+		})
+
+		It("keeps track of cluster sinks stats", func() {
+			spySink := newSpySink()
+			defer spySink.stop()
+			s := syslog.Sink{
+				Addr: spySink.url(),
+				Name: "sink-name",
+			}
+			out := syslog.NewOut(nil, []*syslog.Sink{&s})
+			record := map[interface{}]interface{}{
+				"log": []byte("some-log"),
+				"kubernetes": map[interface{}]interface{}{
+					"namespace_name": []byte("ns1"),
+					"pod_name":       []byte("pod-name"),
+					"container_name": []byte("container-name"),
+				},
+			}
+
+			out.Write(record, time.Unix(0, 0).UTC(), "k8s.event")
+
+			spySink.accept().Close()
+
+			Eventually(func() int64 {
+				stats := out.Stats()
+				Expect(stats).To(HaveLen(1))
+
+				stat := stats[0]
+				Expect(stat.Namespace).To(Equal(""))
+				Expect(stat.Name).To(Equal("sink-name"))
+				Expect(stat.WriteError).To(BeEmpty())
+				return stat.LastSentNanos
+			}).Should(BeNumerically(">", 0))
+		})
+
+		It("tracks the latest error", func() {
+			s := syslog.Sink{
+				Addr:      "127.0.0.1:12345",
+				Namespace: "ns1",
+				Name:      "sink-name",
+			}
+			out := syslog.NewOut(
+				[]*syslog.Sink{&s},
+				nil,
+				syslog.WithWriteTimeout(200*time.Millisecond),
+			)
+			record := map[interface{}]interface{}{
+				"log": []byte("some-log"),
+				"kubernetes": map[interface{}]interface{}{
+					"namespace_name": []byte("ns1"),
+					"pod_name":       []byte("pod-name"),
+					"container_name": []byte("container-name"),
+				},
+			}
+
+			out.Write(record, time.Unix(0, 0).UTC(), "k8s.event")
+
+			Eventually(func() string {
+				stats := out.Stats()
+				Expect(stats).To(HaveLen(1))
+
+				stat := stats[0]
+				Expect(stat.Namespace).To(Equal("ns1"))
+				Expect(stat.Name).To(Equal("sink-name"))
+				return stat.WriteError
+			}).Should(Equal("dial tcp 127.0.0.1:12345: connect: connection refused"))
+
+			spySink := newSpySink("127.0.0.1:12345")
+			defer spySink.stop()
+			record2 := map[interface{}]interface{}{
+				"log": []byte("some-log"),
+				"kubernetes": map[interface{}]interface{}{
+					"namespace_name": []byte("ns1"),
+					"pod_name":       []byte("pod-name"),
+					"container_name": []byte("container-name"),
+				},
+			}
+			out.Write(record2, time.Unix(0, 0).UTC(), "k8s.event")
+			spySink.accept().Close()
+
+			Eventually(func() string {
+				stats := out.Stats()
+				Expect(stats).To(HaveLen(1))
+
+				stat := stats[0]
+				Expect(stat.Namespace).To(Equal("ns1"))
+				Expect(stat.Name).To(Equal("sink-name"))
+				return stat.WriteError
+			}).Should(BeEmpty())
+		})
+
 		It("includes event in the app name if set on the record", func() {
 			spySink := newSpySink()
 			defer spySink.stop()
