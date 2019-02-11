@@ -21,6 +21,17 @@ const (
 	logTag   = "pod.log"
 )
 
+type SinkError struct {
+	Msg string `json:"msg"`
+}
+
+type SinkState struct {
+	Name               string     `json:"name"`
+	Namespace          string     `json:"namespace"`
+	LastSuccessfulSend time.Time  `json:"last_successful_send"`
+	Error              *SinkError `json:"error"`
+}
+
 type Sink struct {
 	Addr      string `json:"addr"`
 	Namespace string `json:"namespace"`
@@ -140,49 +151,41 @@ func (o *Out) Write(
 	}
 }
 
-func (o *Out) Stats() []Stat {
-	var stats []Stat
+func (o *Out) SinkState() []SinkState {
+	var stats []SinkState
 	for _, sinks := range o.sinks {
 		for _, s := range sinks {
-			var err string
-			errValue := s.writeErr.Load()
-			if errValue != nil {
-				err = errValue.(string)
-			}
-
-			stats = append(stats, Stat{
-				Name:                 s.Name,
-				Namespace:            s.Namespace,
-				LastSendSuccessNanos: atomic.LoadInt64(&s.lastSendSuccessNanos),
-				LastSendAttemptNanos: atomic.LoadInt64(&s.lastSendAttemptNanos),
-				WriteError:           err,
+			stats = append(stats, SinkState{
+				Name:               s.Name,
+				Namespace:          s.Namespace,
+				LastSuccessfulSend: time.Unix(0, atomic.LoadInt64(&s.lastSendSuccessNanos)),
+				Error:              s.LoadSinkError(),
 			})
 		}
 	}
-	for _, s := range o.clusterSinks {
-		var err string
-		errValue := s.writeErr.Load()
-		if errValue != nil {
-			err = errValue.(string)
-		}
 
-		stats = append(stats, Stat{
-			Name:                 s.Name,
-			LastSendSuccessNanos: atomic.LoadInt64(&s.lastSendSuccessNanos),
-			LastSendAttemptNanos: atomic.LoadInt64(&s.lastSendAttemptNanos),
-			WriteError:           err,
+	for _, s := range o.clusterSinks {
+		stats = append(stats, SinkState{
+			Name:               s.Name,
+			LastSuccessfulSend: time.Unix(0, atomic.LoadInt64(&s.lastSendSuccessNanos)),
+			Error:              s.LoadSinkError(),
 		})
 	}
 
 	return stats
 }
 
-type Stat struct {
-	Name                 string `json:"name"`
-	Namespace            string `json:"namespace"`
-	LastSendSuccessNanos int64  `json:"last_send_success_nanos"`
-	LastSendAttemptNanos int64  `json:"last_send_attempt_nanos"`
-	WriteError           string `json:"write_error"`
+func (s *Sink) LoadSinkError() *SinkError {
+	sErrMsg := s.writeErr.Load()
+	if sErrMsg != nil {
+		s := sErrMsg.(string)
+		if s == "" {
+			return nil
+		} else {
+			return &SinkError{Msg: s}
+		}
+	}
+	return nil
 }
 
 func (s *Sink) start(bufferSize int) {

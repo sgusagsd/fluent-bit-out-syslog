@@ -8,17 +8,17 @@ import (
 	"github.com/pivotal-cf/fluent-bit-out-syslog/pkg/syslog"
 )
 
-type syslogStatProvider interface {
-	Stats() []syslog.Stat
+type syslogStateProvider interface {
+	SinkState() []syslog.SinkState
 }
 
-func NewHandler(p syslogStatProvider) http.HandlerFunc {
+func NewHandler(p syslogStateProvider) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
-		stats := p.Stats()
+		s := p.SinkState()
 
-		err := json.NewEncoder(w).Encode(&stats)
+		err := json.NewEncoder(w).Encode(&s)
 		if err != nil {
-			log.Printf("Error encoding stat response: %s", err)
+			log.Printf("Error encoding state response: %s", err)
 		}
 	}
 }

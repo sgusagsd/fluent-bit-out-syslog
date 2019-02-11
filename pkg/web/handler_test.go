@@ -3,6 +3,7 @@ package web_test
 import (
 	"net/http"
 	"net/http/httptest"
+	"time"
 
 	"github.com/pivotal-cf/fluent-bit-out-syslog/pkg/syslog"
 	"github.com/pivotal-cf/fluent-bit-out-syslog/pkg/web"
@@ -11,16 +12,18 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Handler", func() {
+var _ = Describe("State Handler", func() {
 	It("responds with a 200", func() {
+		fixedTime, _ := time.Parse(time.RFC3339, "2009-11-10T23:00:00Z")
 		stats := syslogStater{
-			stat: []syslog.Stat{
+			s: []syslog.SinkState{
 				{
-					Name:                 "sink-name",
-					Namespace:            "ns1",
-					LastSendSuccessNanos: 10,
-					LastSendAttemptNanos: 10,
-					WriteError:           "error",
+					Name:               "sink-name",
+					Namespace:          "ns1",
+					LastSuccessfulSend: fixedTime,
+					Error: &syslog.SinkError{
+						Msg: "some-error",
+					},
 				},
 			},
 		}
@@ -35,9 +38,10 @@ var _ = Describe("Handler", func() {
 				{
 					"name": "sink-name",
 					"namespace": "ns1",
-					"last_send_success_nanos": 10,
-					"last_send_attempt_nanos": 10,
-					"write_error": "error"
+					"last_successful_send": "2009-11-10T23:00:00Z",
+					"error": {
+						"msg": "some-error"
+					}
 				}
 			]
 		`))
@@ -45,9 +49,9 @@ var _ = Describe("Handler", func() {
 })
 
 type syslogStater struct {
-	stat []syslog.Stat
+	s []syslog.SinkState
 }
 
-func (s syslogStater) Stats() []syslog.Stat {
-	return s.stat
+func (ss syslogStater) SinkState() []syslog.SinkState {
+	return ss.s
 }
