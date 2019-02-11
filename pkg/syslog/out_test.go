@@ -186,7 +186,7 @@ var _ = Describe("Out", func() {
 					},
 				}
 
-				out.Write(record, time.Unix(0, 0).UTC(), "k8s.event")
+				out.Write(record, time.Unix(0, 0).UTC(), "k8s.event._ns1_")
 
 				spySink.accept().Close()
 
@@ -219,7 +219,7 @@ var _ = Describe("Out", func() {
 					},
 				}
 
-				out.Write(record, time.Unix(0, 0).UTC(), "k8s.event")
+				out.Write(record, time.Unix(0, 0).UTC(), "k8s.event._ns1_")
 
 				spySink.accept().Close()
 
@@ -255,9 +255,9 @@ var _ = Describe("Out", func() {
 					},
 				}
 
-				out.Write(record, time.Unix(0, 0).UTC(), "k8s.event")
-				out.Write(record, time.Unix(0, 0).UTC(), "k8s.event")
-				out.Write(record, time.Unix(0, 0).UTC(), "k8s.event")
+				out.Write(record, time.Unix(0, 0).UTC(), "k8s.event._ns1_")
+				out.Write(record, time.Unix(0, 0).UTC(), "k8s.event._ns1_")
+				out.Write(record, time.Unix(0, 0).UTC(), "k8s.event._ns1_")
 
 				var sErr *syslog.SinkError
 				Eventually(func() *syslog.SinkError {
@@ -282,7 +282,7 @@ var _ = Describe("Out", func() {
 						"container_name": []byte("container-name"),
 					},
 				}
-				out.Write(record2, time.Unix(0, 0).UTC(), "k8s.event")
+				out.Write(record2, time.Unix(0, 0).UTC(), "k8s.event._ns1_")
 				spySink.accept().Close()
 
 				Eventually(func() *syslog.SinkError {
@@ -314,7 +314,7 @@ var _ = Describe("Out", func() {
 				},
 			}
 
-			out.Write(record, time.Unix(0, 0).UTC(), "k8s.event")
+			out.Write(record, time.Unix(0, 0).UTC(), "k8s.event._ns1_")
 
 			spySink.expectReceived(
 				`<14>1 1970-01-01T00:00:00+00:00 - k8s.event/ns1/pod-name/container-name - - [kubernetes@47450 namespace_name="ns1" object_name="pod-name" container_name="container-name"] some-log` + "\n",

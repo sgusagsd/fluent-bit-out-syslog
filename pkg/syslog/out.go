@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -17,8 +18,8 @@ import (
 // the user.
 
 const (
-	eventTag = "k8s.event"
-	logTag   = "pod.log"
+	eventPrefix = "k8s.event"
+	logPrefix   = "pod.log"
 )
 
 type SinkError struct {
@@ -364,12 +365,13 @@ func convert(
 	)
 
 	if len(k8sMap) != 0 {
-		if tag != eventTag {
-			tag = logTag
+		prefix := logPrefix
+		if strings.HasPrefix(tag, eventPrefix) {
+			prefix = eventPrefix
 		}
 		appName = fmt.Sprintf(
 			"%s/%s/%s/%s",
-			tag,
+			prefix,
 			namespaceName,
 			podName,
 			containerName,
