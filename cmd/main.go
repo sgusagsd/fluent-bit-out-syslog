@@ -87,13 +87,6 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 		record map[interface{}]interface{}
 	)
 
-	if out == nil {
-		once.Do(func() {
-			log.Println("[out_syslog] ERROR: trying to flush to an uninitialized output plugin")
-		})
-		return output.FLB_ERROR
-	}
-
 	dec := output.NewDecoder(data, int(length))
 	for {
 		ret, ts, record = output.GetRecord(dec)
