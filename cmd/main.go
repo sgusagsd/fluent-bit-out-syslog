@@ -13,12 +13,10 @@ import (
 )
 import (
 	"net/http"
-	"sync"
 )
 
 var (
-	out  *syslog.Out
-	once sync.Once
+	out *syslog.Out
 )
 
 //export FLBPluginRegister
