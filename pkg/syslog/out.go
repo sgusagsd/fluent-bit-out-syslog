@@ -62,6 +62,7 @@ type Out struct {
 	dialTimeout  time.Duration
 	bufferSize   int
 	writeTimeout time.Duration
+	hostOverride string
 }
 
 type OutOption func(*Out)
@@ -81,6 +82,12 @@ func WithBufferSize(s int) OutOption {
 func WithWriteTimeout(t time.Duration) OutOption {
 	return func(o *Out) {
 		o.writeTimeout = t
+	}
+}
+
+func WithHostOverride(host string) OutOption {
+	return func(o *Out) {
+		o.hostOverride = host
 	}
 }
 
@@ -135,7 +142,7 @@ func (o *Out) Write(
 	ts time.Time,
 	tag string,
 ) {
-	msg, namespace := convert(record, ts, tag)
+	msg, namespace := convert(record, ts, tag, o.hostOverride)
 
 	for _, cs := range o.clusterSinks {
 		cs.queueMessage(msg)
@@ -281,6 +288,7 @@ func convert(
 	record map[interface{}]interface{},
 	ts time.Time,
 	tag string,
+	hostOverride string,
 ) (*rfc5424.Message, string) {
 	var (
 		logmsg []byte
@@ -310,7 +318,7 @@ func convert(
 	}
 
 	var (
-		host          string
+		vmID          string
 		appName       string
 		podName       string
 		namespaceName string
@@ -329,7 +337,7 @@ func convert(
 			if !ok2 {
 				continue
 			}
-			host = string(v2)
+			vmID = string(v2)
 		case "container_name":
 			v2, ok2 := v.([]byte)
 			if !ok2 {
@@ -362,6 +370,7 @@ func convert(
 		namespaceName,
 		podName,
 		containerName,
+		vmID,
 	)
 
 	if len(k8sMap) != 0 {
@@ -387,6 +396,10 @@ func convert(
 		logmsg = append(logmsg, byte('\n'))
 	}
 
+	host := vmID
+	if hostOverride != "" {
+		host = hostOverride
+	}
 	return &rfc5424.Message{
 		Priority:  rfc5424.Info + rfc5424.User,
 		Timestamp: ts,
@@ -419,18 +432,31 @@ func processLabels(labels map[interface{}]interface{}) []rfc5424.SDParam {
 	return params
 }
 
-func buildStructuredData(labels []rfc5424.SDParam, ns, pn, cn string) rfc5424.StructuredData {
-	labels = append(labels,
+func buildStructuredData(labels []rfc5424.SDParam, ns, pn, cn, vmID string) rfc5424.StructuredData {
+	labels = append(
+		labels,
 		rfc5424.SDParam{
 			Name:  "namespace_name",
 			Value: ns,
-		}, rfc5424.SDParam{
+		},
+		rfc5424.SDParam{
 			Name:  "object_name",
 			Value: pn,
-		}, rfc5424.SDParam{
+		},
+		rfc5424.SDParam{
 			Name:  "container_name",
 			Value: cn,
-		})
+		},
+	)
+	if vmID != "" {
+		labels = append(
+			labels,
+			rfc5424.SDParam{
+				Name:  "vm_id",
+				Value: vmID,
+			},
+		)
+	}
 
 	return rfc5424.StructuredData{
 		ID:         "kubernetes@47450",
