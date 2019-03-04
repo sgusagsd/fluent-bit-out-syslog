@@ -64,9 +64,8 @@ func FLBPluginInit(ctx unsafe.Pointer) int {
 		log.Println("[out_syslog] ERROR: require at least one sink or cluster sink")
 		return output.FLB_ERROR
 	}
-	hostOverride := output.FLBPluginConfigKey(ctx, "hostoverride")
 
-	out = syslog.NewOut(sinks, clusterSinks, syslog.WithHostOverride(hostOverride))
+	out = syslog.NewOut(sinks, clusterSinks)
 
 	statsAddr := output.FLBPluginConfigKey(ctx, "statsaddr")
 	if statsAddr == "" {

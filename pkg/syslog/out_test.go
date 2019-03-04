@@ -602,18 +602,17 @@ var _ = Describe("Out", func() {
 
 	})
 
-	It("overrides the host", func() {
+	It("uses the cluster_name as host if provided", func() {
 		spySink := newSpySink()
 		defer spySink.stop()
 		s := syslog.Sink{
 			Addr:      spySink.url(),
 			Namespace: "ns1",
 		}
-		out := syslog.NewOut([]*syslog.Sink{&s}, nil,
-			syslog.WithHostOverride("my-host"),
-		)
+		out := syslog.NewOut([]*syslog.Sink{&s}, nil)
 		record := map[interface{}]interface{}{
-			"log": []byte("some-log"),
+			"cluster_name": []byte("my-host"),
+			"log":          []byte("some-log"),
 			"kubernetes": map[interface{}]interface{}{
 				"namespace_name": []byte("ns1"),
 				"pod_name":       []byte("pod-name"),

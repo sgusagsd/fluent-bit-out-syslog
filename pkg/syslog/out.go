@@ -62,7 +62,6 @@ type Out struct {
 	dialTimeout  time.Duration
 	bufferSize   int
 	writeTimeout time.Duration
-	hostOverride string
 }
 
 type OutOption func(*Out)
@@ -82,12 +81,6 @@ func WithBufferSize(s int) OutOption {
 func WithWriteTimeout(t time.Duration) OutOption {
 	return func(o *Out) {
 		o.writeTimeout = t
-	}
-}
-
-func WithHostOverride(host string) OutOption {
-	return func(o *Out) {
-		o.hostOverride = host
 	}
 }
 
@@ -142,7 +135,7 @@ func (o *Out) Write(
 	ts time.Time,
 	tag string,
 ) {
-	msg, namespace := convert(record, ts, tag, o.hostOverride)
+	msg, namespace := convert(record, ts, tag)
 
 	for _, cs := range o.clusterSinks {
 		cs.queueMessage(msg)
@@ -288,11 +281,11 @@ func convert(
 	record map[interface{}]interface{},
 	ts time.Time,
 	tag string,
-	hostOverride string,
 ) (*rfc5424.Message, string) {
 	var (
 		logmsg []byte
 		k8sMap map[interface{}]interface{}
+		host   string
 	)
 
 	for k, v := range record {
@@ -314,6 +307,12 @@ func convert(
 				continue
 			}
 			k8sMap = v2
+		case "cluster_name":
+			v2, ok2 := v.([]byte)
+			if !ok2 {
+				continue
+			}
+			host = string(v2)
 		}
 	}
 
@@ -396,10 +395,10 @@ func convert(
 		logmsg = append(logmsg, byte('\n'))
 	}
 
-	host := vmID
-	if hostOverride != "" {
-		host = hostOverride
+	if host == "" {
+		host = vmID
 	}
+
 	return &rfc5424.Message{
 		Priority:  rfc5424.Info + rfc5424.User,
 		Timestamp: ts,
