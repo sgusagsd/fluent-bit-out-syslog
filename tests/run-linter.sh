@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -e
-
+export GOFLAGS="-mod=vendor"
 function log {
     local msg=$*
     date_timestamp=$(date +['%Y-%m-%d %H:%M:%S'])
