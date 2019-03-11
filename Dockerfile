@@ -5,11 +5,6 @@ WORKDIR /root
 ENV GOOS=linux \
     GOARCH=amd64
 
-COPY /go.mod /go.sum /root/
-
-RUN go version && \
-    go mod download
-
 COPY / /root/
 
 RUN go build \
@@ -18,6 +13,7 @@ RUN go build \
     -buildmode c-shared \
     -o /out_syslog.so \
     -mod=readonly \
+    -mod=vendor \
     cmd/main.go
 
 FROM ubuntu:xenial as builder
