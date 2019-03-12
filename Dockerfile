@@ -30,8 +30,9 @@ ENV FLB_TARBALL http://github.com/fluent/fluent-bit/archive/v$FLB_VERSION.zip
 
 RUN mkdir -p /fluent-bit/bin /fluent-bit/etc /fluent-bit/log /tmp/src/
 
-RUN apt-get update -qq \
-    && apt-get install -qq \
+RUN apt-get update \
+    && apt-get dist-upgrade -y \
+    && apt-get install -y \
        build-essential \
        cmake \
        make \
@@ -44,8 +45,7 @@ RUN apt-get update -qq \
     && wget -O "/tmp/fluent-bit-${FLB_VERSION}.zip" ${FLB_TARBALL} \
     && cd /tmp && unzip "fluent-bit-$FLB_VERSION.zip" \
     && cd "fluent-bit-$FLB_VERSION"/build/ \
-    && cmake --quiet \
-          -DFLB_DEBUG=On \
+    && cmake -DFLB_DEBUG=On \
           -DFLB_TRACE=Off \
           -DFLB_JEMALLOC=On \
           -DFLB_BUFFERING=On \
@@ -54,7 +54,7 @@ RUN apt-get update -qq \
           -DFLB_EXAMPLES=Off \
           -DFLB_HTTP_SERVER=On \
           -DFLB_OUT_KAFKA=On .. \
-    && make --quiet \
+    && make \
     && install bin/fluent-bit /fluent-bit/bin/
 
 # Configuration files
@@ -68,11 +68,9 @@ COPY /config/fluent-bit.conf \
 
 FROM ubuntu:xenial
 
-RUN groupadd --system fluent-bit --gid 1000 && \
-    useradd --no-log-init --system --gid fluent-bit fluent-bit --uid 1000
-
 RUN apt-get update \
-    && apt-get install --no-install-recommends ca-certificates libssl1.0.2 -qq libsasl2-2 \
+    && apt-get dist-upgrade -y \
+    && apt-get install --no-install-recommends ca-certificates libssl1.0.2 -y libsasl2-2 \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get autoclean
 
@@ -80,6 +78,5 @@ COPY --from=builder /fluent-bit /fluent-bit
 COPY --from=gobuilder /out_syslog.so /fluent-bit/bin/
 
 EXPOSE 2020
-USER 1000:1000
 
 CMD ["/fluent-bit/bin/fluent-bit", "--plugin", "/fluent-bit/bin/out_syslog.so", "--config", "/fluent-bit/etc/fluent-bit.conf"]
