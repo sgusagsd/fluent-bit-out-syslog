@@ -23,7 +23,8 @@ const (
 )
 
 type SinkError struct {
-	Msg string `json:"msg"`
+	Msg       string `json:"msg"`
+	Timestamp time.Time `json:"timestamp"`
 }
 
 type SinkState struct {
@@ -177,14 +178,8 @@ func (o *Out) SinkState() []SinkState {
 }
 
 func (s *Sink) LoadSinkError() *SinkError {
-	sErrMsg := s.writeErr.Load()
-	if sErrMsg != nil {
-		s := sErrMsg.(string)
-		if s == "" {
-			return nil
-		} else {
-			return &SinkError{Msg: s}
-		}
+	if sinkError, ok := s.writeErr.Load().(SinkError); ok && sinkError.Msg != "" {
+		return &sinkError
 	}
 	return nil
 }
@@ -217,7 +212,10 @@ func (s *Sink) write(w io.WriterTo) {
 	err := s.maintainConnection()
 	if err != nil {
 		atomic.AddInt64(&s.messagesDropped, 1)
-		s.writeErr.Store(err.Error())
+		s.writeErr.Store(SinkError{
+			Msg:err.Error(),
+			Timestamp:time.Now(),
+		})
 		return
 	}
 	_ = s.conn.SetWriteDeadline(time.Now().Add(s.writeTimeout))
@@ -226,10 +224,13 @@ func (s *Sink) write(w io.WriterTo) {
 		s.conn.Close()
 		s.conn = nil
 		atomic.AddInt64(&s.messagesDropped, 1)
-		s.writeErr.Store(err.Error())
+		s.writeErr.Store(SinkError{
+			Msg:err.Error(),
+			Timestamp:time.Now(),
+		})
 		return
 	}
-	s.writeErr.Store("")
+	s.writeErr.Store(SinkError{})
 	atomic.StoreInt64(&s.lastSendSuccessNanos, time.Now().UnixNano())
 }
 

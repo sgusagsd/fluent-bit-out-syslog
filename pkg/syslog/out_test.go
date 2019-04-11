@@ -279,6 +279,8 @@ var _ = Describe("Out", func() {
 				}).ShouldNot(BeNil())
 
 				Expect(sErr.Msg).To(Equal("dial tcp 127.0.0.1:12345: connect: connection refused"))
+				Expect(sErr.Timestamp).To(BeTemporally(">", time.Time{}))
+				Expect(sErr.Timestamp).To(BeTemporally("<", time.Now(), time.Second))
 
 				spySink := newSpySink("127.0.0.1:12345")
 				defer spySink.stop()

@@ -15,6 +15,7 @@ import (
 var _ = Describe("State Handler", func() {
 	It("responds with a 200", func() {
 		fixedTime, _ := time.Parse(time.RFC3339, "2009-11-10T23:00:00Z")
+		errorTime, _ := time.Parse(time.RFC3339, "2009-11-10T23:00:01Z")
 		stats := syslogStater{
 			s: []syslog.SinkState{
 				{
@@ -22,7 +23,8 @@ var _ = Describe("State Handler", func() {
 					Namespace:          "ns1",
 					LastSuccessfulSend: fixedTime,
 					Error: &syslog.SinkError{
-						Msg: "some-error",
+						Msg:       "some-error",
+						Timestamp: errorTime,
 					},
 				},
 			},
@@ -40,7 +42,8 @@ var _ = Describe("State Handler", func() {
 					"namespace": "ns1",
 					"last_successful_send": "2009-11-10T23:00:00Z",
 					"error": {
-						"msg": "some-error"
+						"msg": "some-error",
+						"timestamp": "2009-11-10T23:00:01Z"
 					}
 				}
 			]
