@@ -30,6 +30,40 @@ ENV FLB_TARBALL http://github.com/fluent/fluent-bit/archive/v$FLB_VERSION.zip
 
 RUN mkdir -p /fluent-bit/bin /fluent-bit/etc /fluent-bit/log /tmp/src/
 
+# NOTE: This is the old build script. It pulls from github releases. We
+# switched the build to wfernandes repo temporarily to pull in some changes we
+# needed. Once these changes are merged we should start pulling from github
+# releases again.
+
+# RUN apt-get update \
+#     && apt-get dist-upgrade -y \
+#     && apt-get install -y \
+#        build-essential \
+#        cmake \
+#        make \
+#        wget \
+#        unzip \
+#        libsystemd-dev \
+#        libssl-dev \
+#        libasl-dev \
+#        libsasl2-dev \
+#        flex \
+#        bison \
+#     && wget -O "/tmp/fluent-bit-${FLB_VERSION}.zip" ${FLB_TARBALL} \
+#     && cd /tmp && unzip "fluent-bit-$FLB_VERSION.zip" \
+#     && cd "fluent-bit-$FLB_VERSION"/build/ \
+#     && cmake -DFLB_DEBUG=On \
+#           -DFLB_TRACE=Off \
+#           -DFLB_JEMALLOC=On \
+#           -DFLB_BUFFERING=On \
+#           -DFLB_TLS=On \
+#           -DFLB_SHARED_LIB=Off \
+#           -DFLB_EXAMPLES=Off \
+#           -DFLB_HTTP_SERVER=On \
+#           -DFLB_OUT_KAFKA=On .. \
+#     && make \
+#     && install bin/fluent-bit /fluent-bit/bin/
+
 RUN apt-get update \
     && apt-get dist-upgrade -y \
     && apt-get install -y \
@@ -42,9 +76,12 @@ RUN apt-get update \
        libssl-dev \
        libasl-dev \
        libsasl2-dev \
-    && wget -O "/tmp/fluent-bit-${FLB_VERSION}.zip" ${FLB_TARBALL} \
-    && cd /tmp && unzip "fluent-bit-$FLB_VERSION.zip" \
-    && cd "fluent-bit-$FLB_VERSION"/build/ \
+       flex \
+       bison \
+       git \
+    && git clone https://github.com/wfernandes/fluent-bit /tmp/fluent-bit.git \
+    && cd /tmp/fluent-bit.git/build \
+    && git checkout remote-context \
     && cmake -DFLB_DEBUG=On \
           -DFLB_TRACE=Off \
           -DFLB_JEMALLOC=On \
