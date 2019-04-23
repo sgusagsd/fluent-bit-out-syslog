@@ -4,3 +4,5 @@ linters:
 linters-settings:
   lll:
     line-length: 300
+run:
+  modules-download-mode: vendor
