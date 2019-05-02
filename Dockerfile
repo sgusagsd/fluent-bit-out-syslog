@@ -20,7 +20,7 @@ RUN go build \
     -mod=readonly \
     cmd/main.go
 
-FROM ubuntu:xenial as builder
+FROM ubuntu:xenial-20190425 as builder
 
 # Fluent Bit version
 ENV FLB_MAJOR 1
@@ -70,7 +70,7 @@ COPY /config/fluent-bit.conf \
      /config/parsers_cinder.conf \
      /fluent-bit/etc/
 
-FROM ubuntu:xenial
+FROM ubuntu:xenial-20190425
 
 RUN apt-get update \
     && apt-get dist-upgrade -y \
