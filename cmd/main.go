@@ -30,7 +30,7 @@ var multiStateProvider web.MultiStateProvider
 //export FLBPluginInit
 func FLBPluginInit(plugin unsafe.Pointer) int {
 	addr := output.FLBPluginConfigKey(plugin, "addr")
-	name := output.FLBPluginConfigKey(plugin, "name")
+	name := output.FLBPluginConfigKey(plugin, "instancename")
 	namespace := output.FLBPluginConfigKey(plugin, "namespace")
 	cluster := output.FLBPluginConfigKey(plugin, "cluster")
 	tls := output.FLBPluginConfigKey(plugin, "tls")
@@ -41,7 +41,7 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 		return output.FLB_ERROR
 	}
 	if name == "" {
-		log.Println("[out_syslog] ERROR: Name is required")
+		log.Println("[out_syslog] ERROR: InstanceName is required")
 		return output.FLB_ERROR
 	}
 	if statsAddr == "" {
@@ -90,6 +90,8 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 	multiStateProvider.Add(out)
 
 	output.FLBPluginSetContext(plugin, unsafe.Pointer(&out))
+
+	log.Printf("Initializing plugin %s in namespace %s to destination %s", name, namespace, addr)
 
 	return output.FLB_OK
 }
