@@ -31,7 +31,7 @@ ENV FLB_TARBALL http://github.com/fluent/fluent-bit/archive/v$FLB_VERSION.zip
 RUN mkdir -p /fluent-bit/bin /fluent-bit/etc /fluent-bit/log /tmp/src/
 
 # NOTE: This is the old build script. It pulls from github releases. We
-# switched the build to wfernandes repo temporarily to pull in some changes we
+# switched the build to pivotal-cf repo temporarily to pull in some changes we
 # needed. Once these changes are merged we should start pulling from github
 # releases again.
 
@@ -78,10 +78,10 @@ RUN apt-get update \
        libsasl2-dev \
        flex \
        bison \
-       git \
-    && git clone https://github.com/wfernandes/fluent-bit /tmp/fluent-bit.git \
-    && cd /tmp/fluent-bit.git/build \
-    && git checkout remote-context \
+       git
+
+RUN git clone https://github.com/fluent/fluent-bit /tmp/fluent-bit \
+    && cd /tmp/fluent-bit/build \
     && cmake -DFLB_DEBUG=On \
           -DFLB_TRACE=Off \
           -DFLB_JEMALLOC=On \
