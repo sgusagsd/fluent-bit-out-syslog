@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -14,6 +15,10 @@ import (
 
 	"github.com/pivotal-cf/fluent-bit-out-syslog/pkg/syslog"
 	"github.com/pivotal-cf/fluent-bit-out-syslog/pkg/web"
+)
+
+var (
+	once sync.Once
 )
 
 //export FLBPluginRegister
@@ -49,12 +54,12 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 		return output.FLB_ERROR
 	}
 
-	var once sync.Once
 	once.Do(func() {
 		if statsAddr == "" {
 			statsAddr = "127.0.0.1:5000"
 		}
 		go func() {
+			log.Println("Stats Addr listening on ", statsAddr)
 			log.Println(http.ListenAndServe(
 				statsAddr,
 				web.NewHandler(&multiStateProvider),
@@ -89,10 +94,27 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 	out := syslog.NewOut(sinks, clusterSinks)
 	multiStateProvider.Add(out)
 
-	output.FLBPluginSetContext(plugin, unsafe.Pointer(&out))
-
-	log.Printf("Initializing plugin %s in namespace %s to destination %s", name, namespace, addr)
-
+	// We are using runtime.KeepAlive to tell the Go Runtime to keep the
+	// reference to this pointer because once it leaves this context and
+	// enters cgo it will no longer be in scope of Go. If a GC event occurs
+	// the memory is reclaimed.
+	// NOTE 1: Yes we are passing the `out` pointer even though it points to a
+	// struct that contains other Go pointers and this violates the rules as
+	// defined here: https://golang.org/cmd/cgo/#hdr-Passing_pointers
+	// > Go code may pass a Go pointer to C provided the Go memory to which it
+	//   points does not contain any Go pointers.
+	// But this seems to be the most stable solution even when comparing the
+	// instance slice/index solution.
+	// NOTE 2: Since we are asking the Go Runtime to not clean this memory
+	// up, it can be a cause for a "memory leak" however we are not planning
+	// on millions of sinks to be initialized.
+	output.FLBPluginSetContext(plugin, unsafe.Pointer(out))
+	runtime.KeepAlive(out)
+	if strings.ToLower(cluster) == "true" {
+		log.Printf("Initializing plugin %s for cluster to destination %s", name, addr)
+	} else {
+		log.Printf("Initializing plugin %s for namespace %s to destination %s", name, namespace, addr)
+	}
 	return output.FLB_OK
 }
 
