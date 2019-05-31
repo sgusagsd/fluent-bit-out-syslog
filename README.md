@@ -23,7 +23,7 @@ an endpoint that supports TLS.
 
  **Syslog output plugin with kubernetes namespace filter**
 
-```
+```ini
 [INPUT]
     Name              tail
     Tag               kube.*
@@ -42,10 +42,19 @@ an endpoint that supports TLS.
     K8S-Logging.Parser  On
 
 [OUTPUT]
-    Name syslog
-    Match *
-    Sinks [{"addr":"logs.papertrailapp.com:18271", "namespace": "myns", "tls":{"insecure_skip_verify":"true"}}]
-    ClusterSinks [{"addr":"logs.papertrailapp.com:18271"}]
+    Name          syslog
+    InstanceName  insecure-namespace-sink
+    Match         *
+    Addr          logs.papertrailapp.com:18271
+    Namespace     myns
+    TLSConfig     {"insecure_skip_verify":"true"}
+
+[OUTPUT]
+    Name          syslog
+    InstanceName  plaintext-cluster-sink
+    Match         *
+    Addr          logs.papertrailapp.com:18271
+    Cluster       true
 ```
 
 
@@ -75,7 +84,9 @@ fluent-bit \
     --input dummy \
     --plugin ./out_syslog.so \
     --output syslog \
-    --prop ClusterSinks='[{"addr":"localhost:12345"}]'
+    --prop InstanceName='testing' \
+    --prop Addr='localhost:12345' \
+    --prop Cluster='true'
 ```
 
 [rfc5424]:   https://tools.ietf.org/html/rfc5424
