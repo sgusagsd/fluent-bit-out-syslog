@@ -9,7 +9,6 @@ require (
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/onsi/ginkgo v1.6.0
 	github.com/onsi/gomega v1.4.1
-	github.com/ugorji/go/codec v0.0.0-20180831062425-e253f1f20942 // indirect
 	golang.org/x/net v0.0.0-20180906233101-161cd47e91fd // indirect
 	golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f // indirect
 	golang.org/x/sys v0.0.0-20180909124046-d0be0721c37e // indirect
@@ -19,3 +18,5 @@ require (
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v2 v2.2.1 // indirect
 )
+
+replace github.com/fluent/fluent-bit-go => github.com/wfernandes/fluent-bit-go v0.0.0-20190416184736-06ac16c1ccf5

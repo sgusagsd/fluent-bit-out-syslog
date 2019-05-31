@@ -23,7 +23,7 @@ const (
 )
 
 type SinkError struct {
-	Msg       string `json:"msg"`
+	Msg       string    `json:"msg"`
 	Timestamp time.Time `json:"timestamp"`
 }
 
@@ -35,10 +35,10 @@ type SinkState struct {
 }
 
 type Sink struct {
-	Addr      string `json:"addr"`
-	Namespace string `json:"namespace"`
-	TLS       *TLS   `json:"tls"`
-	Name      string `json:"name"`
+	Addr      string
+	Name      string
+	Namespace string
+	TLS       *TLS
 
 	messages chan io.WriterTo
 
@@ -213,8 +213,8 @@ func (s *Sink) write(w io.WriterTo) {
 	if err != nil {
 		atomic.AddInt64(&s.messagesDropped, 1)
 		s.writeErr.Store(SinkError{
-			Msg:err.Error(),
-			Timestamp:time.Now(),
+			Msg:       err.Error(),
+			Timestamp: time.Now(),
 		})
 		return
 	}
@@ -225,8 +225,8 @@ func (s *Sink) write(w io.WriterTo) {
 		s.conn = nil
 		atomic.AddInt64(&s.messagesDropped, 1)
 		s.writeErr.Store(SinkError{
-			Msg:err.Error(),
-			Timestamp:time.Now(),
+			Msg:       err.Error(),
+			Timestamp: time.Now(),
 		})
 		return
 	}

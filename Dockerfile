@@ -42,9 +42,12 @@ RUN apt-get update \
        libssl-dev \
        libasl-dev \
        libsasl2-dev \
-    && wget -O "/tmp/fluent-bit-${FLB_VERSION}.zip" ${FLB_TARBALL} \
-    && cd /tmp && unzip "fluent-bit-$FLB_VERSION.zip" \
-    && cd "fluent-bit-$FLB_VERSION"/build/ \
+       flex \
+       bison \
+       git
+
+RUN git clone https://github.com/fluent/fluent-bit /tmp/fluent-bit \
+    && cd /tmp/fluent-bit/build \
     && cmake -DFLB_DEBUG=On \
           -DFLB_TRACE=Off \
           -DFLB_JEMALLOC=On \
