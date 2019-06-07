@@ -20,9 +20,9 @@ FROM ubuntu:xenial as builder
 
 # Fluent Bit version
 ENV FLB_MAJOR 1
-ENV FLB_MINOR 0
-ENV FLB_PATCH 4
-ENV FLB_VERSION 1.0.4
+ENV FLB_MINOR 1
+ENV FLB_PATCH 2
+ENV FLB_VERSION 1.1.2
 
 ENV DEBIAN_FRONTEND noninteractive
 
@@ -44,10 +44,10 @@ RUN apt-get update \
        libsasl2-dev \
        flex \
        bison \
-       git
-
-RUN git clone https://github.com/fluent/fluent-bit /tmp/fluent-bit \
-    && cd /tmp/fluent-bit/build \
+       git \
+    && wget -O "/tmp/fluent-bit-${FLB_VERSION}.zip" ${FLB_TARBALL} \
+    && cd /tmp && unzip "fluent-bit-$FLB_VERSION.zip" \
+    && cd "fluent-bit-$FLB_VERSION"/build/ \
     && cmake -DFLB_DEBUG=On \
           -DFLB_TRACE=Off \
           -DFLB_JEMALLOC=On \
