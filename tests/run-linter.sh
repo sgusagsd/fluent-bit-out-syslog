@@ -20,7 +20,7 @@ function install_golangci_lint {
 
 function run_golangci_lint {
     log "Run golangci-lint run"
-    golangci-lint run
+    "$(go env GOPATH)/bin/golangci-lint" run
 }
 
 install_golangci_lint
