@@ -26,7 +26,7 @@ ENV FLB_VERSION 1.1.3
 
 ENV DEBIAN_FRONTEND noninteractive
 
-ENV FLB_TARBALL http://github.com/fluent/fluent-bit/archive/v$FLB_VERSION.zip
+ENV FLB_TARBALL https://github.com/fluent/fluent-bit/archive/v$FLB_VERSION.zip
 
 RUN mkdir -p /fluent-bit/bin /fluent-bit/etc /fluent-bit/log /tmp/src/
 
