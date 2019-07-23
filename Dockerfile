@@ -1,22 +1,40 @@
-FROM oratos/golang-base:1.11 as gobuilder
+FROM ubuntu:xenial
+# Install Go
+ADD https://dl.google.com/go/go1.12.7.linux-amd64.tar.gz go.tar.gz
+RUN tar -xf go.tar.gz && mv go /usr/local
+ENV GOROOT=/usr/local/go
+ENV GOPATH=$HOME/go
+ENV PATH=$GOROOT/bin:$GOPATH/bin:$PATH
 
-WORKDIR /root
+RUN apt-get update \
+    && apt-get install -y \
+       build-essential \
+       cmake \
+       make \
+       wget \
+       unzip \
+       libsystemd-dev \
+       libssl-dev \
+       libasl-dev \
+       libsasl2-dev \
+       flex \
+       bison \
+       gcc \
+       git
 
 ENV GOOS=linux \
     GOARCH=amd64
 
-COPY / /root/
+COPY / /syslog-plugin/
 
-RUN go build \
+RUN cd /syslog-plugin && go build \
     -a \
     -installsuffix fluent \
     -buildmode c-shared \
-    -o /out_syslog.so \
+    -o /syslog-plugin/out_syslog.so \
     -mod=readonly \
     -mod=vendor \
     cmd/main.go
-
-FROM ubuntu:xenial as builder
 
 # Fluent Bit version
 ENV FLB_MAJOR 1
@@ -30,22 +48,7 @@ ENV FLB_TARBALL https://github.com/fluent/fluent-bit/archive/v$FLB_VERSION.zip
 
 RUN mkdir -p /fluent-bit/bin /fluent-bit/etc /fluent-bit/log /tmp/src/
 
-RUN apt-get update \
-    && apt-get dist-upgrade -y \
-    && apt-get install -y \
-       build-essential \
-       cmake \
-       make \
-       wget \
-       unzip \
-       libsystemd-dev \
-       libssl-dev \
-       libasl-dev \
-       libsasl2-dev \
-       flex \
-       bison \
-       git \
-    && wget -O "/tmp/fluent-bit-${FLB_VERSION}.zip" ${FLB_TARBALL} \
+RUN wget -O "/tmp/fluent-bit-${FLB_VERSION}.zip" ${FLB_TARBALL} \
     && cd /tmp && unzip "fluent-bit-$FLB_VERSION.zip" \
     && cd "fluent-bit-$FLB_VERSION"/build/ \
     && cmake -DFLB_DEBUG=On \
@@ -69,17 +72,6 @@ COPY /config/fluent-bit.conf \
      /config/parsers_cinder.conf \
      /fluent-bit/etc/
 
-FROM ubuntu:xenial
-
-RUN apt-get update \
-    && apt-get dist-upgrade -y \
-    && apt-get install --no-install-recommends ca-certificates libssl1.0.2 -y libsasl2-2 \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get autoclean
-
-COPY --from=builder /fluent-bit /fluent-bit
-COPY --from=gobuilder /out_syslog.so /fluent-bit/bin/
-
 EXPOSE 2020
 
-CMD ["/fluent-bit/bin/fluent-bit", "--plugin", "/fluent-bit/bin/out_syslog.so", "--config", "/fluent-bit/etc/fluent-bit.conf"]
+CMD ["/fluent-bit/bin/fluent-bit", "--plugin", "/syslog-plugin/out_syslog.so", "--config", "/fluent-bit/etc/fluent-bit.conf"]
