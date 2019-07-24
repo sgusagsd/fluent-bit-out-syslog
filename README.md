@@ -18,6 +18,10 @@ forward all logs from all namespaces to the specified syslog destination.
 The `tls` configuration is optional and is required only if connecting to
 an endpoint that supports TLS.
 
+`SanitizeHost` controls whether the hostname field in outgoing messages is
+sanitized to match [DNS hostname requirements][dns-rfc] (no characters besides
+letters, digits and hyphens, no leading or trailing hyphens in each part). It
+is enabled by default as of the most recent release.
 
 ## Sample Config File
 
@@ -46,6 +50,7 @@ an endpoint that supports TLS.
     Match *
     Sinks [{"addr":"logs.papertrailapp.com:18271", "namespace": "myns", "tls":{"insecure_skip_verify":"true"}}]
     ClusterSinks [{"addr":"logs.papertrailapp.com:18271"}]
+    SanitizeHost  false
 ```
 
 
@@ -81,5 +86,6 @@ fluent-bit \
     --prop ClusterSinks=[{"addr": "localhost:12345"}]
 ```
 
+[dns-rfc]:   https://tools.ietf.org/html/rfc1034#section-3.5
 [rfc5424]:   https://tools.ietf.org/html/rfc5424
 [cfrfc5424]: https://github.com/cloudfoundry-incubator/rfc5424
