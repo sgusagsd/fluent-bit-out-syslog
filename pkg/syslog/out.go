@@ -37,12 +37,12 @@ type SinkState struct {
 }
 
 type Sink struct {
-	Addr      string `json:"addr"`
-	Namespace string `json:"namespace"`
-	TLS       *TLS   `json:"tls"`
-	Name      string `json:"name"`
-
-	messages chan io.WriterTo
+	Addr         string `json:"addr"`
+	Namespace    string `json:"namespace"`
+	TLS          *TLS   `json:"tls"`
+	Name         string `json:"name"`
+	SanitizeHost bool   `json:"sanitize_host"`
+	messages     chan io.WriterTo
 
 	messagesDropped      int64
 	lastSendSuccessNanos int64
@@ -65,7 +65,6 @@ type Out struct {
 	dialTimeout  time.Duration
 	bufferSize   int
 	writeTimeout time.Duration
-	sanitizeHost bool
 }
 
 type OutOption func(*Out)
@@ -85,14 +84,6 @@ func WithBufferSize(s int) OutOption {
 func WithWriteTimeout(t time.Duration) OutOption {
 	return func(o *Out) {
 		o.writeTimeout = t
-	}
-}
-
-// WithSanitizeHost configures hostname sanitization to conform to DNS
-// requirements.
-func WithSanitizeHost(s bool) OutOption {
-	return func(o *Out) {
-		o.sanitizeHost = s
 	}
 }
 
@@ -147,10 +138,15 @@ func (o *Out) Write(
 	ts time.Time,
 	tag string,
 ) {
-	msg, namespace := convert(record, ts, tag, o.sanitizeHost)
+	msg, namespace := convert(record, ts, tag, false)
+	sanitizedMsg, namespace := convert(record, ts, tag, true)
 
 	for _, cs := range o.clusterSinks {
-		cs.queueMessage(msg)
+		if cs.SanitizeHost {
+			cs.queueMessage(sanitizedMsg)
+		} else {
+			cs.queueMessage(msg)
+		}
 	}
 
 	namespaceSinks, ok := o.sinks[namespace]
@@ -160,7 +156,11 @@ func (o *Out) Write(
 	}
 
 	for _, s := range namespaceSinks {
-		s.queueMessage(msg)
+		if s.SanitizeHost {
+			s.queueMessage(sanitizedMsg)
+		} else {
+			s.queueMessage(msg)
+		}
 	}
 }
 

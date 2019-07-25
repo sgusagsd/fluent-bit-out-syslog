@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"strconv"
 	"time"
 	"unsafe"
 
@@ -31,7 +30,6 @@ func FLBPluginRegister(ctx unsafe.Pointer) int {
 func FLBPluginInit(ctx unsafe.Pointer) int {
 	s := output.FLBPluginConfigKey(ctx, "sinks")
 	cs := output.FLBPluginConfigKey(ctx, "clustersinks")
-	sanitizeHost := output.FLBPluginConfigKey(plugin, "sanitizehost")
 	if s == "" && cs == "" {
 		log.Println("[out_syslog] ERROR: Sinks or ClusterSinks need to be configured")
 		return output.FLB_ERROR
@@ -65,20 +63,9 @@ func FLBPluginInit(ctx unsafe.Pointer) int {
 		return output.FLB_ERROR
 	}
 
-	// Defaults to true so that plugin conforms better with rfc5424#section-6.2.4
-	sanitize := true
-	if len(sanitizeHost) != 0 {
-		var err error
-		sanitize, err = strconv.ParseBool(sanitizeHost)
-		if err != nil {
-			log.Printf("[out_syslog] ERROR: Unable to parse SanitizeHost: %s", err)
-			return output.FLB_ERROR
-		}
-	}
 	out := syslog.NewOut(
 		sinks,
 		clusterSinks,
-		syslog.WithSanitizeHost(sanitize),
 	)
 
 	statsAddr := output.FLBPluginConfigKey(ctx, "statsaddr")

@@ -480,13 +480,13 @@ var _ = Describe("Out", func() {
 				defer spySink.stop()
 
 				s := syslog.Sink{
-					Addr:      spySink.url(),
-					Namespace: "namespace",
+					Addr:         spySink.url(),
+					Namespace:    "namespace",
+					SanitizeHost: true,
 				}
 				out := syslog.NewOut(
 					[]*syslog.Sink{&s},
 					nil,
-					syslog.WithSanitizeHost(true),
 				)
 				r1 := map[interface{}]interface{}{
 					"cluster_name": []byte(hostname),
