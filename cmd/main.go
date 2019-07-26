@@ -63,7 +63,7 @@ func FLBPluginInit(ctx unsafe.Pointer) int {
 		return output.FLB_ERROR
 	}
 
-	out := syslog.NewOut(
+	out = syslog.NewOut(
 		sinks,
 		clusterSinks,
 	)
