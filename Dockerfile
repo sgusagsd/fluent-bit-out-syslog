@@ -1,13 +1,8 @@
-FROM ubuntu:xenial
-# Install Go
-ADD https://dl.google.com/go/go1.12.7.linux-amd64.tar.gz go.tar.gz
-RUN tar -xf go.tar.gz && mv go /usr/local
-ENV GOROOT=/usr/local/go
-ENV GOPATH=$HOME/go
-ENV PATH=$GOROOT/bin:$GOPATH/bin:$PATH
+ARG BASE_IMAGE=ubuntu:bionic
+FROM $BASE_IMAGE
 
 RUN apt-get update \
-    && apt-get install -y \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y \
        build-essential \
        cmake \
        make \
@@ -21,6 +16,16 @@ RUN apt-get update \
        bison \
        gcc \
        git
+
+# Install Go
+ARG GOLANG_SOURCE=dl.google.com/go
+RUN wget https://$GOLANG_SOURCE/go1.12.7.linux-amd64.tar.gz -O go.tar.gz && \
+    tar -xf go.tar.gz && \
+    mv go /usr/local && \
+    rm go.tar.gz
+ENV GOROOT=/usr/local/go
+ENV GOPATH=$HOME/go
+ENV PATH=$GOROOT/bin:$GOPATH/bin:$PATH
 
 ENV GOOS=linux \
     GOARCH=amd64
@@ -61,7 +66,8 @@ RUN wget -O "/tmp/fluent-bit-${FLB_VERSION}.zip" ${FLB_TARBALL} \
           -DFLB_HTTP_SERVER=On \
           -DFLB_OUT_KAFKA=On .. \
     && make \
-    && install bin/fluent-bit /fluent-bit/bin/
+    && install bin/fluent-bit /fluent-bit/bin/ \
+    && rm -rf /tmp/fluent-bit-*
 
 # Configuration files
 COPY /config/fluent-bit.conf \
