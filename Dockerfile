@@ -15,7 +15,8 @@ RUN apt-get update \
        flex \
        bison \
        gcc \
-       git
+       git \
+    && apt-get clean
 
 # Install Go
 ARG GOLANG_SOURCE=dl.google.com/go
@@ -41,21 +42,13 @@ RUN cd /syslog-plugin && go build \
     -mod=vendor \
     cmd/main.go
 
-# Fluent Bit version
-ENV FLB_MAJOR 1
-ENV FLB_MINOR 1
-ENV FLB_PATCH 3
-ENV FLB_VERSION 1.1.3
+ENV FLB_TARBALL https://github.com/pivotal/fluent-bit/archive/b3adad2.zip
 
-ENV DEBIAN_FRONTEND noninteractive
-
-ENV FLB_TARBALL https://github.com/fluent/fluent-bit/archive/v$FLB_VERSION.zip
-
-RUN mkdir -p /fluent-bit/bin /fluent-bit/etc /fluent-bit/log /tmp/src/
-
-RUN wget -O "/tmp/fluent-bit-${FLB_VERSION}.zip" ${FLB_TARBALL} \
-    && cd /tmp && unzip "fluent-bit-$FLB_VERSION.zip" \
-    && cd "fluent-bit-$FLB_VERSION"/build/ \
+RUN mkdir -p /fluent-bit/bin /fluent-bit/etc /fluent-bit/log /tmp/src/ \
+    && wget -O "/tmp/fluent-bit-b3adad27582ed7db0338b699391ecc6bd3779c1f.zip" ${FLB_TARBALL} \
+    && cd /tmp && unzip "fluent-bit-b3adad27582ed7db0338b699391ecc6bd3779c1f.zip" \
+    && ls \
+    && cd "fluent-bit-b3adad27582ed7db0338b699391ecc6bd3779c1f"/build/ \
     && cmake -DFLB_DEBUG=On \
           -DFLB_TRACE=Off \
           -DFLB_JEMALLOC=On \
