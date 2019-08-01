@@ -41,14 +41,13 @@ RUN cd /syslog-plugin && go build \
     -mod=readonly \
     -mod=vendor \
     cmd/main.go
-
-ENV FLB_TARBALL https://github.com/pivotal/fluent-bit/archive/b3adad2.zip
+ENV FLB_SHA b3adad27582ed7db0338b699391ecc6bd3779c1f
+ENV FLB_TARBALL https://github.com/pivotal/fluent-bit/archive/$FLB_SHA.zip
 
 RUN mkdir -p /fluent-bit/bin /fluent-bit/etc /fluent-bit/log /tmp/src/ \
-    && wget -O "/tmp/fluent-bit-b3adad27582ed7db0338b699391ecc6bd3779c1f.zip" ${FLB_TARBALL} \
-    && cd /tmp && unzip "fluent-bit-b3adad27582ed7db0338b699391ecc6bd3779c1f.zip" \
-    && ls \
-    && cd "fluent-bit-b3adad27582ed7db0338b699391ecc6bd3779c1f"/build/ \
+    && wget -O "/tmp/fluent-bit-$FLB_SHA.zip" ${FLB_TARBALL} \
+    && cd /tmp && unzip "fluent-bit-$FLB_SHA.zip" \
+    && cd "fluent-bit-$FLB_SHA"/build/ \
     && cmake -DFLB_DEBUG=On \
           -DFLB_TRACE=Off \
           -DFLB_JEMALLOC=On \
