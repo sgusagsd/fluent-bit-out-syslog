@@ -2,19 +2,18 @@ ARG BASE_IMAGE=ubuntu:bionic
 FROM $BASE_IMAGE
 
 RUN apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-       build-essential \
-       cmake \
-       make \
-       wget \
-       unzip \
-       libsystemd-dev \
-       libssl-dev \
-       libsasl2-dev \
-       flex \
+    && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
        bison \
-       gcc \
+       build-essential \
+       ca-certificates \
+       cmake \
+       flex \
        git \
+       libsasl2-dev \
+       libssl-dev \
+       libsystemd-dev \
+       unzip \
+       wget \
     && apt-get clean
 
 # Install Go
