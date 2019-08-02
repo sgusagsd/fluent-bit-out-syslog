@@ -10,7 +10,6 @@ RUN apt-get update \
        unzip \
        libsystemd-dev \
        libssl-dev \
-       libasl-dev \
        libsasl2-dev \
        flex \
        bison \
