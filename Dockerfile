@@ -1,11 +1,11 @@
 ARG BASE_IMAGE=ubuntu:bionic
-FROM $BASE_IMAGE
+FROM $BASE_IMAGE as builder
 
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
        bison \
-       build-essential \
        ca-certificates \
+       build-essential \
        cmake \
        flex \
        git \
@@ -59,6 +59,7 @@ RUN mkdir -p /fluent-bit/bin /fluent-bit/etc /fluent-bit/log /tmp/src/ \
     && install bin/fluent-bit /fluent-bit/bin/ \
     && rm -rf /tmp/fluent-bit-*
 
+
 # Configuration files
 COPY /config/fluent-bit.conf \
      /config/parsers.conf \
@@ -68,6 +69,30 @@ COPY /config/fluent-bit.conf \
      /config/parsers_cinder.conf \
      /fluent-bit/etc/
 
+RUN dpkg -l > /builder-dpkg-list
+
+FROM $BASE_IMAGE
+
+COPY --from=builder /usr/lib/x86_64-linux-gnu/*sasl* /usr/lib/x86_64-linux-gnu/
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libz* /usr/lib/x86_64-linux-gnu/
+COPY --from=builder /lib/x86_64-linux-gnu/libz* /lib/x86_64-linux-gnu/
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libssl.so* /usr/lib/x86_64-linux-gnu/
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libcrypto.so* /usr/lib/x86_64-linux-gnu/
+# These below are all needed for systemd
+COPY --from=builder /lib/x86_64-linux-gnu/libsystemd* /lib/x86_64-linux-gnu/
+COPY --from=builder /lib/x86_64-linux-gnu/libselinux.so* /lib/x86_64-linux-gnu/
+COPY --from=builder /lib/x86_64-linux-gnu/liblzma.so* /lib/x86_64-linux-gnu/
+COPY --from=builder /usr/lib/x86_64-linux-gnu/liblz4.so* /usr/lib/x86_64-linux-gnu/
+COPY --from=builder /lib/x86_64-linux-gnu/libgcrypt.so* /lib/x86_64-linux-gnu/
+COPY --from=builder /lib/x86_64-linux-gnu/libpcre.so* /lib/x86_64-linux-gnu/
+COPY --from=builder /lib/x86_64-linux-gnu/libgpg-error.so* /lib/x86_64-linux-gnu/
+
+COPY --from=builder /fluent-bit /fluent-bit
+
+COPY --from=builder /syslog-plugin /syslog-plugin
+COPY --from=builder /builder-dpkg-list /builder-dpkg-list
 EXPOSE 2020
+
+RUN apt update && apt install -y --no-install-recommends ca-certificates && apt-get autoclean
 
 CMD ["/fluent-bit/bin/fluent-bit", "--plugin", "/syslog-plugin/out_syslog.so", "--config", "/fluent-bit/etc/fluent-bit.conf"]
