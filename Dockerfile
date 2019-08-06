@@ -73,6 +73,8 @@ RUN dpkg -l > /builder-dpkg-list
 
 FROM $BASE_IMAGE
 
+RUN apt update && apt install -y --no-install-recommends ca-certificates build-essential && apt-get autoclean
+
 COPY --from=builder /usr/lib/x86_64-linux-gnu/*sasl* /usr/lib/x86_64-linux-gnu/
 COPY --from=builder /usr/lib/x86_64-linux-gnu/libz* /usr/lib/x86_64-linux-gnu/
 COPY --from=builder /lib/x86_64-linux-gnu/libz* /lib/x86_64-linux-gnu/
@@ -88,11 +90,9 @@ COPY --from=builder /lib/x86_64-linux-gnu/libpcre.so* /lib/x86_64-linux-gnu/
 COPY --from=builder /lib/x86_64-linux-gnu/libgpg-error.so* /lib/x86_64-linux-gnu/
 
 COPY --from=builder /fluent-bit /fluent-bit
-
 COPY --from=builder /syslog-plugin /syslog-plugin
 COPY --from=builder /builder-dpkg-list /builder-dpkg-list
-EXPOSE 2020
 
-RUN apt update && apt install -y --no-install-recommends ca-certificates build-essential && apt-get autoclean
+EXPOSE 2020
 
 CMD ["/fluent-bit/bin/fluent-bit", "--plugin", "/syslog-plugin/out_syslog.so", "--config", "/fluent-bit/etc/fluent-bit.conf"]
