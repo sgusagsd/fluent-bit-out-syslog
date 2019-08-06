@@ -93,6 +93,6 @@ COPY --from=builder /syslog-plugin /syslog-plugin
 COPY --from=builder /builder-dpkg-list /builder-dpkg-list
 EXPOSE 2020
 
-RUN apt update && apt install -y --no-install-recommends ca-certificates && apt-get autoclean
+RUN apt update && apt install -y --no-install-recommends ca-certificates build-essential && apt-get autoclean
 
 CMD ["/fluent-bit/bin/fluent-bit", "--plugin", "/syslog-plugin/out_syslog.so", "--config", "/fluent-bit/etc/fluent-bit.conf"]
