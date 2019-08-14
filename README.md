@@ -51,7 +51,7 @@ is enabled by default as of the most recent release.
     Match         *
     Addr          logs.papertrailapp.com:18271
     Namespace     myns
-    TLSConfig     {"insecure_skip_verify":"true"}
+    TLSConfig     {"insecure_skip_verify":true}
 
 [OUTPUT]
     Name          syslog
