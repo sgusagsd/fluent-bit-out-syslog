@@ -1,4 +1,4 @@
-FROM oratos/golang-base:1.11 as gobuilder
+FROM golang:1.11 as gobuilder
 
 WORKDIR /root
 
