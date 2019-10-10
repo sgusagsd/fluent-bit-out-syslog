@@ -18,7 +18,7 @@ RUN apt-get update \
 
 # Install Go
 ARG GOLANG_SOURCE=dl.google.com/go
-RUN wget https://$GOLANG_SOURCE/go1.12.9.linux-amd64.tar.gz -O go.tar.gz && \
+RUN wget https://$GOLANG_SOURCE/go1.12.10.linux-amd64.tar.gz -O go.tar.gz && \
     tar -xf go.tar.gz && \
     mv go /usr/local && \
     rm go.tar.gz
