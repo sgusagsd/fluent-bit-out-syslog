@@ -69,7 +69,7 @@ COPY /config/fluent-bit.conf \
      /config/parsers_cinder.conf \
      /fluent-bit/etc/
 
-RUN dpkg -l > /builder-dpkg-list
+RUN /syslog-plugin/vm-inventory.sh -s deb -m /builder-dpkg-list ubuntu
 
 FROM $BASE_IMAGE
 
