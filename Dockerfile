@@ -3,18 +3,21 @@ FROM $BASE_IMAGE as builder
 
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
-       bison \
-       ca-certificates \
-       build-essential \
-       cmake \
-       flex \
-       git \
-       libsasl2-dev \
-       libssl-dev \
-       libsystemd-dev \
-       unzip \
-       wget \
+    bison \
+    ca-certificates \
+    build-essential \
+    cmake \
+    flex \
+    git \
+    libsasl2-dev \
+    libssl-dev \
+    libsystemd-dev \
+    unzip \
+    wget \
     && apt-get clean
+
+COPY vm-inventory.sh /vm-inventory.sh
+RUN /vm-inventory.sh -s deb -m /builder-dpkg-list ubuntu
 
 # Install Go
 ARG GOLANG_SOURCE=dl.google.com/go
@@ -39,6 +42,7 @@ RUN cd /syslog-plugin && go build \
     -mod=readonly \
     -mod=vendor \
     cmd/main.go
+
 ENV FLB_SHA b3adad27582ed7db0338b699391ecc6bd3779c1f
 ENV FLB_TARBALL https://github.com/pivotal/fluent-bit/archive/$FLB_SHA.zip
 
@@ -47,30 +51,33 @@ RUN mkdir -p /fluent-bit/bin /fluent-bit/etc /fluent-bit/log /tmp/src/ \
     && cd /tmp && unzip "fluent-bit-$FLB_SHA.zip" \
     && cd "fluent-bit-$FLB_SHA"/build/ \
     && cmake -DFLB_DEBUG=On \
-          -DFLB_TRACE=Off \
-          -DFLB_JEMALLOC=On \
-          -DFLB_BUFFERING=On \
-          -DFLB_TLS=On \
-          -DFLB_SHARED_LIB=Off \
-          -DFLB_EXAMPLES=Off \
-          -DFLB_HTTP_SERVER=On \
-          -DFLB_OUT_KAFKA=On .. \
+    -DFLB_TRACE=Off \
+    -DFLB_JEMALLOC=On \
+    -DFLB_BUFFERING=On \
+    -DFLB_TLS=On \
+    -DFLB_SHARED_LIB=Off \
+    -DFLB_EXAMPLES=Off \
+    -DFLB_HTTP_SERVER=On \
+    -DFLB_OUT_KAFKA=On .. \
     && make \
     && install bin/fluent-bit /fluent-bit/bin/ \
     && rm -rf /tmp/fluent-bit-*
 
+RUN echo "other:fluent-bit:${FLB_VERSION}:" >> /builder-dpkg-list
+RUN echo "    version: ${FLB_VERSION}" >> /builder-dpkg-list
+RUN echo "    name: fluent-bit" >> /builder-dpkg-list
+RUN echo "    url: https://codeload.github.com/fluent/fluent-bit/tar.gz/${FLB_VERSION}" >> /builder-dpkg-list
+RUN echo "    other-url: https://github.com/fluent/fluent-bit" >> /builder-dpkg-list
+RUN echo "    repository: Other" >> /builder-dpkg-list
 
 # Configuration files
 COPY /config/fluent-bit.conf \
-     /config/parsers.conf \
-     /config/parsers_java.conf \
-     /config/parsers_mult.conf \
-     /config/parsers_openstack.conf \
-     /config/parsers_cinder.conf \
-     /fluent-bit/etc/
-
-COPY vm-inventory.sh /vm-inventory.sh
-RUN /vm-inventory.sh -s deb -m /builder-dpkg-list ubuntu
+    /config/parsers.conf \
+    /config/parsers_java.conf \
+    /config/parsers_mult.conf \
+    /config/parsers_openstack.conf \
+    /config/parsers_cinder.conf \
+    /fluent-bit/etc/
 
 FROM $BASE_IMAGE
 
