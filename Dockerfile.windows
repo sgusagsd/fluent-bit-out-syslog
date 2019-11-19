@@ -1,0 +1,46 @@
+ARG BASE_IMAGE=mcr.microsoft.com/windows/servercore:ltsc2019
+FROM $BASE_IMAGE as builder
+SHELL ["powershell", "-NoLogo", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+
+# Install Go
+ARG GOLANG_SOURCE=https://dl.google.com/go/go1.12.12.windows-amd64.zip
+RUN curl.exe -Lo go.zip $env:GOLANG_SOURCE; \
+    tar -xf go.zip -C /; \
+    rm go.zip
+
+ENV GOOS=windows
+ENV GOARCH=amd64
+SHELL ["cmd", "/S", "/C"]
+RUN setx path "%PATH%;C:\\go\\bin"
+SHELL ["powershell", "-NoLogo", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+
+RUN iex (new-object net.webclient).downloadstring('https://get.scoop.sh'); \
+  scoop install gcc
+
+COPY / /syslog-plugin/
+
+RUN cd /syslog-plugin; \
+    go build \
+    -a \
+    -installsuffix fluent \
+    -buildmode c-shared \
+    -o /syslog-plugin/out_syslog.so \
+    -mod=readonly \
+    -mod=vendor \
+    cmd/main.go
+
+FROM fluent-bit:latest
+
+# RUN mkdir syslog-plugin
+COPY --from=builder /syslog-plugin/out_syslog.so /syslog-plugin/
+
+# Configuration files
+COPY /config/fluent-bit.conf \
+    /config/parsers.conf \
+    /config/parsers_java.conf \
+    /config/parsers_mult.conf \
+    /config/parsers_openstack.conf \
+    /config/parsers_cinder.conf \
+    /fluent-bit/etc/
+
+CMD ["fluent-bit", "--plugin", "/syslog-plugin/out_syslog.so", "--config", "/fluent-bit/etc/fluent-bit.conf"]
