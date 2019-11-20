@@ -1,0 +1,69 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  labels:
+    app: fluent-bit-windows-config
+  name: fluent-bit-windows-config
+data:
+  fluent-bit.conf: |
+    [INPUT]
+        Name          tail
+        Path          /var/log/containers/*/*.log
+        Parser        docker
+        Tag           kube.*
+        Mem_Buf_Limit 5MB
+    [OUTPUT]
+        Name  stdout
+        Match *
+---
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  annotations:
+  labels:
+    app: fluent-bit
+  name: fluent-bit
+spec:
+  selector:
+    matchLabels:
+      app: fluent-bit
+  template:
+    metadata:
+      labels:
+        app: fluent-bit
+    spec:
+      nodeSelector:
+        beta.kubernetes.io/os: windows
+      containers:
+      - image: gcr.io/cf-london-servces-k8s/windows-images/fluent-bit-out-syslog:latest
+        name: fluent-bit
+        command: [fluent-bit]
+        args:
+        - --plugin
+        - /syslog-plugin/out_syslog.so
+        - --config
+        - /fluent-bit/etc/fluent-bit.conf
+        volumeMounts:
+        - mountPath: /var/log
+          name: varlog
+        - mountPath: /var/lib/docker/containers
+          name: dockercontainers
+          readOnly: true
+        - mountPath: /fluent-bit/etc
+          name: fluent-bit-windows-config
+      volumes:
+      - hostPath:
+          path: /var/log
+        name: varlog
+      - hostPath:
+          path: /ProgramData/docker/containers
+        name: dockercontainers
+      - configMap:
+         defaultMode: 420
+         name: fluent-bit-windows-config
+        name: fluent-bit-windows-config
+      tolerations:
+      - key: "windows"
+        operator: "Equal"
+        value: "2019"
+        effect: "NoSchedule"

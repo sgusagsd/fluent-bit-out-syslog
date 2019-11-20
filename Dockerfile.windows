@@ -29,7 +29,7 @@ RUN cd /syslog-plugin; \
     -mod=vendor \
     cmd/main.go
 
-FROM fluent-bit:latest
+FROM gcr.io/cf-london-servces-k8s/windows-images/fluent-bit:latest
 
 # RUN mkdir syslog-plugin
 COPY --from=builder /syslog-plugin/out_syslog.so /syslog-plugin/
