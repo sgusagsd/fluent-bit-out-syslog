@@ -18,7 +18,7 @@ import (
 func FLBPluginRegister(def unsafe.Pointer) int {
 	return output.FLBPluginRegister(
 		def,
-		"syslog",
+		"syslogkenny",
 		"syslog output plugin that follows RFC 5424",
 	)
 }
